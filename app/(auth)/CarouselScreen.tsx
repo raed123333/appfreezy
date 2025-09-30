@@ -16,16 +16,17 @@ const { width, height } = Dimensions.get("window");
 const data = [
   {
     title: "Bienvenue sur FreezyCorp",
-    description: "Découvrez une nouvelle façon d’explorer vos projets avec nous.",
+    description: "Votre partenaire premium en climatisation, maintenance et solutions techniques.Simplifiez la gestion de vos projets et gagnez en sérénité, dès aujourd’hui.",
   },
   {
-    title: "Restez Connecté",
-    description: "Collaborez facilement avec votre équipe où que vous soyez.",
+    title: "Bienvenue sur FreezyCorp",
+    description: "Votre partenaire premium en climatisation, maintenance et solutions techniques.Simplifiez la gestion de vos projets et gagnez en sérénité, dès aujourd’hui.",
   },
   {
-    title: "Prêt à Commencer ?",
-    description: "Rejoignez-nous dès maintenant et accédez à toutes les fonctionnalités.",
+    title: "Bienvenue sur FreezyCorp",
+    description: "Votre partenaire premium en climatisation, maintenance et solutions techniques.Simplifiez la gestion de vos projets et gagnez en sérénité, dès aujourd’hui.",
   },
+  
 ];
 
 const CarouselScreen = () => {

@@ -109,10 +109,10 @@ const sinUp = () => {
               source={require("../../assets/images/logoGold.png")}
               style={styles.logo}
             />
-            <Text style={styles.title}>S'inscrire</Text>
+            <Text style={styles.title}>Créez votre compte Freezy Corp</Text>
             <Text style={styles.sectionText}>
-              Lorem ipsum dolor sit amet. Et omnis{'\n'} 
-              repellendus nam magnam 
+              Accédez à toutes nos offres et gérez vos interventions{'\n'} 
+              depuis votre espace client.
             </Text>
           </View>
         </ImageBackground>
@@ -135,7 +135,7 @@ const sinUp = () => {
         />
         <TextInput
           style={styles.input}
-          placeholder="mail@mail.com"
+          placeholder="Email professionnel"
           placeholderTextColor="#B0B3C1"
           value={email}
           onChangeText={setEmail}
@@ -144,14 +144,14 @@ const sinUp = () => {
         />
         <TextInput
           style={styles.input}
-          placeholder="Nom de l'entreprise"
+          placeholder="Nom de l’entreprise"
           placeholderTextColor="#B0B3C1"
           value={nomEntreprise}
           onChangeText={setNomEntreprise}
         />
         <TextInput
           style={styles.input}
-          placeholder="Adresse"
+          placeholder="Adresse complète"
           placeholderTextColor="#B0B3C1"
           value={adresse}
           onChangeText={setAdresse}

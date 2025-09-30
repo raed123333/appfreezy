@@ -59,10 +59,10 @@ const LogIn = () => {
               source={require("../../assets/images/logoGold.png")}
               style={styles.logo}
             />
-            <Text style={styles.title}>Bienvenue</Text>
+            <Text style={styles.title}>Connexion</Text>
             <Text style={styles.sectionText}>
-              Lorem ipsum dolor sit amet. Et omnis{'\n'} 
-              repellendus nam magnam 
+              Accédez à votre espace sécurisé et pilotez vos{'\n'} 
+              interventions en toute simplicité.
             </Text>
           </View>
         </ImageBackground>
@@ -105,7 +105,7 @@ const LogIn = () => {
         </TouchableOpacity>
 
         <View style={styles.TextRow}>
-          <Text style={styles.MotText}>Vous n'avez pas de compte ? </Text>
+          <Text style={styles.MotText}>Pas encore de compte ? </Text>
           <Link href="../sinUp" asChild>
             <Text style={styles.MotTextTwo}> Inscrivez-vous</Text>
           </Link>

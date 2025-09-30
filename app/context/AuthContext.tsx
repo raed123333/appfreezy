@@ -137,6 +137,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
   //verify code 
    const verifyResetCode = async (email:String, code:String) => {
+    console.log(email, code);
   const response = await fetch(`${API}/utilisateur/verifyResetCode`, {
     method: 'POST',
     headers: {
