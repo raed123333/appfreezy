@@ -13,7 +13,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.jabriraed.freezyCorp",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "We need access to your camera so you can take and upload photos inside the app."
       }
     },
     "android": {
