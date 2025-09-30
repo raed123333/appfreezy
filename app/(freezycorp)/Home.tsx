@@ -11,8 +11,8 @@ import {
   View,
 } from "react-native";
 
-import NosOffres from "./NosOffres";
 import CeQueDisentClients from "./CeQueDisentClients";
+import NosOffres from "./NosOffres";
 
 const { height } = Dimensions.get("window");
 
@@ -40,8 +40,8 @@ const Home: React.FC = () => {
           </View>
 
           <Text style={styles.nomPrenom}>
-            Découvrez l’univers FreezyCorp, où chaque solution est pensée pour
-            vous simplifier la vie
+            Bienvenue dans l’univers FreezyCorp, où chaque solution est pensée pour vous offrir fiabilité,
+            rapidité et tranquillité d’esprit.
           </Text>
         </ImageBackground>
       </View>
@@ -68,7 +68,7 @@ const Home: React.FC = () => {
         {/* Section A propos */}
         <View style={styles.secondeContainer}>
           <Text style={{ color: "#013743", fontSize: 24, fontWeight: "bold" }}>
-            A propos
+            A propos 
           </Text>
           <Text style={{ color: "#04D9E7", fontSize: 24, fontWeight: "bold" }}>
             FreezyCorp
@@ -81,17 +81,12 @@ const Home: React.FC = () => {
               textAlign: "center",
             }}
           >
-            Lorem ipsum dolor sit amet. Aut dolorem quia est{"\n"}
-            natus tempora ea omnis molestiae aut{"\n"}
-            accusamus unde quo saepe aperiam! Sed autem{"\n"}
-            nobis non dolor facilis ut accusantium esse est{"\n"}
-            magni dolores est quia facilis quo quidem{"\n"}
-            cupiditate? Ut itaque enim sit natus animi non{"\n"}
-            natus vero!{"\n"}
-            {"\n"}
-            Qui officia delectus rem soluta tempore ad omnis ipsum. Vel autem
-            autem et dignissimos facere aut velit ullam quo suscipit Quis et
-            praesentium reprehenderit 33 porro cumque.
+            Experts en climatisation et maintenance technique{"\n"}
+            nous vous accompagnons avec des solutions{"\n"}
+            sur-mesure, disponibles à tout moment.{"\n"}
+            Notre mission : assurer la continuité de vos activités, sans interruption.{"\n"}
+            
+
           </Text>
         </View>
 

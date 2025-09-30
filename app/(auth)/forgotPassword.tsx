@@ -61,6 +61,7 @@ const ForgotPassword = () => {
             await verifyResetCode(email, code); // FIXED: Call the actual function
             setStep(3);
         } catch (error) {
+            console.log(error);
             Alert.alert('Erreur', error.error || 'Code invalide ou expiré');
         } finally {
             setIsLoading(false);

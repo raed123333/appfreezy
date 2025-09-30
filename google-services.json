@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "92623667761",
+    "project_id": "freezycorp-6aa4c",
+    "storage_bucket": "freezycorp-6aa4c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:92623667761:android:d0141f82a6165bd0cc8b10",
+        "android_client_info": {
+          "package_name": "com.jabri_raed.freezyCorp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyChoLmDDXlrk-1Lnp6SX9HonvZD4XNzeBg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

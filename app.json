@@ -10,11 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jabriraed.freezyCorp",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "We need access to your camera so you can take and upload photos."
-      }
+      "bundleIdentifier":"com.jabriraed.freezyCorp"
     },
     "android": {
       "adaptiveIcon": {
