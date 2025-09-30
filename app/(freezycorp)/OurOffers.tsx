@@ -262,7 +262,7 @@ const OurOffersComponent = () => {
       const token = getToken();
       
       const response = await axios.post(
-        "${API}/payment/create-payment-intent",
+        `${API}/payment/create-payment-intent`,
         { 
           amount: price, 
           description: `Achat Offre: ${offreTitle} - ${getPeriodDisplayName(selectedPeriod)}`,
@@ -290,7 +290,7 @@ const OurOffersComponent = () => {
         Alert.alert("Erreur de paiement", paymentError.message);
       } else {
         const confirmResponse = await axios.post(
-          "${API}/payment/confirm",
+          `${API}/payment/confirm`,
           { 
             paymentIntentId: response.data.paymentIntentId,
             status: "succeeded" 

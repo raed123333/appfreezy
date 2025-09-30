@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (userData: any) => {
     try {
-      const response = await fetch("${API}/utilisateur", {
+      const response = await fetch(`${API}/utilisateur`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userData),
@@ -116,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ADDED: Forgot Password Function
   const forgotPassword = async (email: string) => {
     try {
-      const response = await fetch("${API}/utilisateur/forgot-password", {
+      const response = await fetch(`${API}/utilisateur/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -156,7 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ADDED: Reset Password Function
   const resetPassword = async (token: string, newPassword: string) => {
     try {
-      const response = await fetch("${API}/utilisateur/reset-password", {
+      const response = await fetch(`${API}/utilisateur/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, newPassword }),
