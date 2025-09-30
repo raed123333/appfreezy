@@ -2,14 +2,14 @@
   "expo": {
     "name": "freezyCorp",
     "slug": "freezyCorp",
-    "version": "1.0.2",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "freezycorp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "buildNumber": "3",
+      "buildNumber": "4",
       "supportsTablet": true,
       "bundleIdentifier": "com.jabriraed.freezyCorp",
       "infoPlist": {

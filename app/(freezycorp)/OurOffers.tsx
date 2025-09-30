@@ -1,10 +1,10 @@
+import { API } from "@/config";
 import { StripeProvider, useStripe } from "@stripe/stripe-react-native";
 import axios from "axios";
 import { Link } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, Dimensions, Image, ImageBackground, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from '../context/AuthContext';
-import { API } from "@/config";
 
 const { width, height } = Dimensions.get("window");
 
@@ -54,14 +54,14 @@ const OurOffersComponent = () => {
 
         if (response.ok) {
           const payments = await response.json();
-          
+
           if (Array.isArray(payments)) {
             // Filter successful payments and find the latest active one
-            const succeededPayments = payments.filter(payment => 
+            const succeededPayments = payments.filter(payment =>
               payment.status === 'succeeded' || payment.status === 'completed'
             );
-            
-            const latestActivePayment = succeededPayments.sort((a, b) => 
+
+            const latestActivePayment = succeededPayments.sort((a, b) =>
               new Date(b.createdAt || b.dateDebut).getTime() - new Date(a.createdAt || a.dateDebut).getTime()
             )[0] || null;
 
@@ -69,11 +69,11 @@ const OurOffersComponent = () => {
             if (latestActivePayment && latestActivePayment.dateFin) {
               const endDate = new Date(latestActivePayment.dateFin);
               const today = new Date();
-              
+
               // Compare dates without time to avoid timezone issues
               const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
               const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-              
+
               if (endDateOnly > todayOnly) {
                 setActiveSubscription(latestActivePayment);
               } else {
@@ -104,8 +104,8 @@ const OurOffersComponent = () => {
   useEffect(() => {
     if (offres.length > 0) {
       let filtered = [];
-      
-      switch(selectedPeriod) {
+
+      switch (selectedPeriod) {
         case 'mensuelle':
           filtered = offres.filter(offre => offre.duree === 1);
           break;
@@ -121,7 +121,7 @@ const OurOffersComponent = () => {
         default:
           filtered = offres;
       }
-      
+
       setFilteredOffres(filtered);
     }
   }, [offres, selectedPeriod]);
@@ -148,7 +148,7 @@ const OurOffersComponent = () => {
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchOffres();
-    
+
     // Also refresh subscription data
     const token = getToken();
     if (token) {
@@ -163,23 +163,23 @@ const OurOffersComponent = () => {
 
         if (response.ok) {
           const payments = await response.json();
-          
+
           if (Array.isArray(payments)) {
-            const succeededPayments = payments.filter(payment => 
+            const succeededPayments = payments.filter(payment =>
               payment.status === 'succeeded' || payment.status === 'completed'
             );
-            
-            const latestActivePayment = succeededPayments.sort((a, b) => 
+
+            const latestActivePayment = succeededPayments.sort((a, b) =>
               new Date(b.createdAt || b.dateDebut).getTime() - new Date(a.createdAt || a.dateDebut).getTime()
             )[0] || null;
 
             if (latestActivePayment && latestActivePayment.dateFin) {
               const endDate = new Date(latestActivePayment.dateFin);
               const today = new Date();
-              
+
               const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
               const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-              
+
               if (endDateOnly > todayOnly) {
                 setActiveSubscription(latestActivePayment);
               } else {
@@ -211,7 +211,7 @@ const OurOffersComponent = () => {
   };
 
   const getPeriodDisplayName = (period) => {
-    switch(period) {
+    switch (period) {
       case 'mensuelle': return 'Mensuelle';
       case 'trimestrielle': return 'Trimestrielle';
       case 'semestrielle': return 'Semestrielle';
@@ -225,24 +225,24 @@ const OurOffersComponent = () => {
       console.log("No active subscription - can purchase");
       return true;
     }
-    
+
     if (activeSubscription.dateFin) {
       const endDate = new Date(activeSubscription.dateFin);
       const today = new Date();
-      
+
       // Compare dates without time to avoid timezone issues
       const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
       const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      
+
       const canPurchase = endDateOnly <= todayOnly;
-      
+
       console.log("Subscription end date:", endDateOnly);
       console.log("Today:", todayOnly);
       console.log("Can purchase:", canPurchase);
-      
+
       return canPurchase;
     }
-    
+
     console.log("No end date - can purchase");
     return true;
   };
@@ -251,7 +251,7 @@ const OurOffersComponent = () => {
     // Check if user can purchase new offer
     if (!canPurchaseNewOffer()) {
       Alert.alert(
-        "Abonnement actif", 
+        "Abonnement actif",
         "Vous avez déjà un abonnement en cours. Vous ne pouvez pas acheter une nouvelle offre avant la fin de votre abonnement actuel.",
         [{ text: "OK" }]
       );
@@ -260,18 +260,18 @@ const OurOffersComponent = () => {
 
     try {
       const token = getToken();
-      
+
       const response = await axios.post(
         `${API}/payment/create-payment-intent`,
-        { 
-          amount: price, 
+        {
+          amount: price,
           description: `Achat Offre: ${offreTitle} - ${getPeriodDisplayName(selectedPeriod)}`,
           offreId: offreId || null,
           duree: duree
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       const { error: initError } = await initPaymentSheet({
         paymentIntentClientSecret: response.data.clientSecret,
         merchantDisplayName: "FreezyCorp",
@@ -284,23 +284,23 @@ const OurOffersComponent = () => {
       }
 
       const { error: paymentError } = await presentPaymentSheet();
-      
+
       if (paymentError) {
         console.log("Payment error:", paymentError);
         Alert.alert("Erreur de paiement", paymentError.message);
       } else {
         const confirmResponse = await axios.post(
           `${API}/payment/confirm`,
-          { 
+          {
             paymentIntentId: response.data.paymentIntentId,
-            status: "succeeded" 
+            status: "succeeded"
           },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        
+
         console.log("Payment confirmed:", confirmResponse.data);
         Alert.alert("Succès", "Paiement effectué avec succès!");
-        
+
         // Refresh subscription data after successful payment
         const subscriptionResponse = await fetch(`${API}/payment/history`, {
           method: 'GET',
@@ -312,11 +312,11 @@ const OurOffersComponent = () => {
 
         if (subscriptionResponse.ok) {
           const payments = await subscriptionResponse.json();
-          const succeededPayments = payments.filter(payment => 
+          const succeededPayments = payments.filter(payment =>
             payment.status === 'succeeded' || payment.status === 'completed'
           );
-          
-          const latestActivePayment = succeededPayments.sort((a, b) => 
+
+          const latestActivePayment = succeededPayments.sort((a, b) =>
             new Date(b.createdAt || b.dateDebut).getTime() - new Date(a.createdAt || a.dateDebut).getTime()
           )[0] || null;
 
@@ -335,7 +335,7 @@ const OurOffersComponent = () => {
   };
 
   const getDurationText = (duree) => {
-    switch(duree) {
+    switch (duree) {
       case 1: return "1 mois";
       case 3: return "3 mois";
       case 6: return "6 mois";
@@ -346,20 +346,20 @@ const OurOffersComponent = () => {
 
   const getSubscriptionStatusMessage = () => {
     if (subscriptionLoading) return "Vérification de votre abonnement...";
-    
+
     if (activeSubscription) {
       const endDate = new Date(activeSubscription.dateFin);
       const today = new Date();
-      
+
       // Compare dates without time to avoid timezone issues
       const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
       const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      
+
       const daysLeft = Math.ceil((endDateOnly - todayOnly) / (1000 * 60 * 60 * 24));
-      
+
       return `Abonnement actif - Expire dans ${daysLeft} jour(s)`;
     }
-    
+
     return null;
   };
 
@@ -401,7 +401,7 @@ const OurOffersComponent = () => {
 
         <View style={isHovered ? styles.firstcardLine : styles.secondecardLine} />
 
-        {(offre.attributs || []).map((f, idx) => (
+        {(Array.isArray(offre.attributs) ? offre.attributs : JSON.parse(offre.attributs || '[]')).map((f, idx) => (
           <View style={styles.buttonRow} key={idx}>
             <Image
               source={isHovered ? require("../../assets/images/check.png") : require("../../assets/images/secondecheck.png")}
@@ -445,7 +445,7 @@ const OurOffersComponent = () => {
   };
 
   const getPeriodDisplayText = () => {
-    switch(selectedPeriod) {
+    switch (selectedPeriod) {
       case 'mensuelle': return 'mensuelle';
       case 'trimestrielle': return 'trimestrielle';
       case 'semestrielle': return 'semestrielle';
@@ -465,7 +465,7 @@ const OurOffersComponent = () => {
         >
           <View style={styles.specialbuttonRow}>
             <View>
-              <Text style={styles.titleBonjour}>Bonjour</Text> 
+              <Text style={styles.titleBonjour}>Bonjour</Text>
               <Text style={styles.nomPrenom}>
                 {getUserDisplayName()}
               </Text>
@@ -482,7 +482,7 @@ const OurOffersComponent = () => {
         </ImageBackground>
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={{ paddingTop: height * 0.1 + 10 }}
         refreshControl={
           <RefreshControl
@@ -492,7 +492,7 @@ const OurOffersComponent = () => {
             tintColor="#04D9E7"
           />
         }
-      > 
+      >
         <View style={styles.inputContainer}>
           <View style={styles.overlay}>
             <Text style={styles.title}>Nos Offres</Text>
@@ -500,11 +500,11 @@ const OurOffersComponent = () => {
               Choisissez la formule qui correspond le mieux à{'\n'}
               vos besoins et à votre budget
             </Text>
-            
+
             <View style={styles.toggleContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
-                  styles.toggleButton, 
+                  styles.toggleButton,
                   selectedPeriod === 'mensuelle' ? styles.toggleButtonActive : styles.toggleButtonInactive
                 ]}
                 onPress={() => setSelectedPeriod('mensuelle')}
@@ -516,10 +516,10 @@ const OurOffersComponent = () => {
                   Mensuelle
                 </Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[
-                  styles.toggleButton, 
+                  styles.toggleButton,
                   selectedPeriod === 'trimestrielle' ? styles.toggleButtonActive : styles.toggleButtonInactive
                 ]}
                 onPress={() => setSelectedPeriod('trimestrielle')}
@@ -531,10 +531,10 @@ const OurOffersComponent = () => {
                   Trimestrielle
                 </Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[
-                  styles.toggleButton, 
+                  styles.toggleButton,
                   selectedPeriod === 'semestrielle' ? styles.toggleButtonActive : styles.toggleButtonInactive
                 ]}
                 onPress={() => setSelectedPeriod('semestrielle')}
@@ -546,10 +546,10 @@ const OurOffersComponent = () => {
                   Semestrielle
                 </Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[
-                  styles.toggleButton, 
+                  styles.toggleButton,
                   selectedPeriod === 'annuelle' ? styles.toggleButtonActive : styles.toggleButtonInactive
                 ]}
                 onPress={() => setSelectedPeriod('annuelle')}
@@ -589,202 +589,202 @@ const OurOffers = () => (
 );
 
 const styles = StyleSheet.create({
-  container: { 
-    position: "absolute", 
-    top: 0, 
-    left: 0, 
-    right: 0, 
-    zIndex: 1000, 
-    height: height * 0.1 
+  container: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    height: height * 0.1
   },
-  background: { 
-    flex: 1, 
-    justifyContent: "center", 
-    alignItems: "center", 
-    borderRadius: 100, 
-    overflow: "hidden" 
+  background: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 100,
+    overflow: "hidden"
   },
-  overlay: { 
-    alignItems: "center" 
+  overlay: {
+    alignItems: "center"
   },
-  blueOverlay: { 
-    ...StyleSheet.absoluteFillObject, 
-    backgroundColor: "#013743" 
+  blueOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#013743"
   },
-  title: { 
-    fontSize: width * 0.06, 
-    fontWeight: "bold", 
-    color: "#013743", 
-    textAlign: "center" 
+  title: {
+    fontSize: width * 0.06,
+    fontWeight: "bold",
+    color: "#013743",
+    textAlign: "center"
   },
-  sectionText: { 
-    fontSize: width * 0.035, 
-    marginBottom: 20, 
-    textAlign: "center", 
-    color: "#A5A5A5" 
+  sectionText: {
+    fontSize: width * 0.035,
+    marginBottom: 20,
+    textAlign: "center",
+    color: "#A5A5A5"
   },
-  inputContainer: { 
-    flex: 1, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    marginTop: 30 
+  inputContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 30
   },
-  search: { 
-    marginTop: 10, 
-    width: 80, 
-    height: 20, 
-    resizeMode: "contain" 
+  search: {
+    marginTop: 10,
+    width: 80,
+    height: 20,
+    resizeMode: "contain"
   },
-  buttonRow: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    marginTop: 15, 
-    width: "100%", 
-    paddingHorizontal: 20 
+  buttonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 15,
+    width: "100%",
+    paddingHorizontal: 20
   },
-  titleBonjour: { 
-    fontSize: width * 0.06, 
-    fontWeight: "bold", 
-    color: "#04D9E7", 
-    textAlign: "left" 
+  titleBonjour: {
+    fontSize: width * 0.06,
+    fontWeight: "bold",
+    color: "#04D9E7",
+    textAlign: "left"
   },
-  nomPrenom: { 
-    fontSize: width * 0.04, 
-    color: "#FFFFFF", 
-    marginTop: 2 
+  nomPrenom: {
+    fontSize: width * 0.04,
+    color: "#FFFFFF",
+    marginTop: 2
   },
-  firstcard: { 
-    width: width * 0.9, 
-    backgroundColor: "#013743", 
-    borderRadius: 12, 
-    padding: 20, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    shadowColor: "#000", 
-    shadowOpacity: 0.1, 
+  firstcard: {
+    width: width * 0.9,
+    backgroundColor: "#013743",
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 5, 
-    elevation: 4, 
+    shadowRadius: 5,
+    elevation: 4,
     marginTop: 20,
     position: 'relative',
   },
-  firstcardTitle: { 
-    fontSize: width * 0.05, 
-    fontWeight: "bold", 
-    color: "#04D9E7", 
-    marginBottom: 10, 
-    textAlign: "center" 
+  firstcardTitle: {
+    fontSize: width * 0.05,
+    fontWeight: "bold",
+    color: "#04D9E7",
+    marginBottom: 10,
+    textAlign: "center"
   },
-  firstcardParagraph: { 
-    fontSize: width * 0.035, 
-    color: "#FFFFFF", 
-    textAlign: "center", 
-    marginBottom: 15 
+  firstcardParagraph: {
+    fontSize: width * 0.035,
+    color: "#FFFFFF",
+    textAlign: "center",
+    marginBottom: 15
   },
-  firstcardLine: { 
-    width: "95%", 
-    height: 1.5, 
-    backgroundColor: "#FFFFFF", 
-    marginBottom: 20 
+  firstcardLine: {
+    width: "95%",
+    height: 1.5,
+    backgroundColor: "#FFFFFF",
+    marginBottom: 20
   },
-  firstfeatureText: { 
-    flex: 1, 
-    fontSize: width * 0.03, 
-    fontWeight: "bold", 
-    color: "#FFFFFF" 
+  firstfeatureText: {
+    flex: 1,
+    fontSize: width * 0.03,
+    fontWeight: "bold",
+    color: "#FFFFFF"
   },
-  firstcardButton: { 
-    width: width * 0.8, 
-    backgroundColor: "#04D9E7", 
-    paddingVertical: 12, 
-    paddingHorizontal: 25, 
-    borderRadius: 8, 
-    marginTop: 20 
+  firstcardButton: {
+    width: width * 0.8,
+    backgroundColor: "#04D9E7",
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+    marginTop: 20
   },
-  cardButtonText: { 
-    color: "#fff", 
-    fontSize: width * 0.04, 
-    fontWeight: "bold", 
-    textAlign: "center" 
+  cardButtonText: {
+    color: "#fff",
+    fontSize: width * 0.04,
+    fontWeight: "bold",
+    textAlign: "center"
   },
-  uiRectangle: { 
-    width: 30, 
-    height: 20, 
-    resizeMode: "contain", 
-    marginRight: 8 
+  uiRectangle: {
+    width: 30,
+    height: 20,
+    resizeMode: "contain",
+    marginRight: 8
   },
-  priceRow: { 
-    flexDirection: "row", 
-    justifyContent: "center", 
-    alignItems: "flex-end", 
-    marginTop: 20 
+  priceRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    marginTop: 20
   },
-  priceNumber: { 
-    fontSize: width * 0.09, 
-    fontWeight: "bold", 
-    color: "#04D9E7", 
-    marginRight: 5 
+  priceNumber: {
+    fontSize: width * 0.09,
+    fontWeight: "bold",
+    color: "#04D9E7",
+    marginRight: 5
   },
-  priceText: { 
-    fontSize: width * 0.035, 
-    fontWeight: "bold", 
-    color: "#04D9E7" 
+  priceText: {
+    fontSize: width * 0.035,
+    fontWeight: "bold",
+    color: "#04D9E7"
   },
-  specialbuttonRow: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    alignItems: "center", 
-    marginTop: 15, 
-    width: "100%", 
-    paddingHorizontal: 20 
+  specialbuttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 15,
+    width: "100%",
+    paddingHorizontal: 20
   },
-  secondecard: { 
-    width: width * 0.9, 
-    backgroundColor: "#F4F5FA", 
-    borderRadius: 12, 
-    padding: 20, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    shadowColor: "#000", 
-    shadowOpacity: 0.1, 
-    shadowOffset: { width: 0, height: 2 }, 
-    shadowRadius: 5, 
-    elevation: 4, 
+  secondecard: {
+    width: width * 0.9,
+    backgroundColor: "#F4F5FA",
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 5,
+    elevation: 4,
     marginTop: 20,
     position: 'relative',
   },
-  secondecardTitle: { 
-    fontSize: width * 0.05, 
-    fontWeight: "bold", 
-    color: "#013743", 
-    marginBottom: 10, 
-    textAlign: "center" 
+  secondecardTitle: {
+    fontSize: width * 0.05,
+    fontWeight: "bold",
+    color: "#013743",
+    marginBottom: 10,
+    textAlign: "center"
   },
-  secondecardParagraph: { 
-    fontSize: width * 0.035, 
-    color: "#000000", 
-    textAlign: "center", 
-    marginBottom: 15 
+  secondecardParagraph: {
+    fontSize: width * 0.035,
+    color: "#000000",
+    textAlign: "center",
+    marginBottom: 15
   },
-  secondecardLine: { 
-    width: "95%", 
-    height: 1.5, 
-    backgroundColor: "#04D9E7", 
-    marginBottom: 20 
+  secondecardLine: {
+    width: "95%",
+    height: 1.5,
+    backgroundColor: "#04D9E7",
+    marginBottom: 20
   },
-  secondefeatureText: { 
-    flex: 1, 
-    fontSize: width * 0.03, 
-    fontWeight: "bold", 
-    color: "#000000" 
+  secondefeatureText: {
+    flex: 1,
+    fontSize: width * 0.03,
+    fontWeight: "bold",
+    color: "#000000"
   },
-  secondecardButton: { 
-    width: width * 0.8, 
-    backgroundColor: "#013743", 
-    paddingVertical: 12, 
-    paddingHorizontal: 25, 
-    borderRadius: 8, 
-    marginTop: 20 
+  secondecardButton: {
+    width: width * 0.8,
+    backgroundColor: "#013743",
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+    marginTop: 20
   },
   toggleContainer: {
     flexDirection: 'row',
