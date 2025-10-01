@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import {
   Dimensions,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,7 +19,6 @@ const NosOffres: React.FC = () => {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [offres, setOffres] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -38,18 +36,12 @@ const NosOffres: React.FC = () => {
       console.error("Erreur API :", err.message);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchOffres();
   }, [user]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchOffres();
-  };
 
   const renderCard = (offre: any, index: number) => {
     const isHovered = hoveredCard === index;
@@ -108,14 +100,6 @@ const NosOffres: React.FC = () => {
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.cardsWrapper}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={["#04D9E7"]}
-              tintColor="#04D9E7"
-            />
-          }
         >
           {offres.map((offre, idx) => renderCard(offre, idx))}
         </ScrollView>

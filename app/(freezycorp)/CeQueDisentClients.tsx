@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import {
   Dimensions,
   Image,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -34,7 +33,6 @@ const CeQueDisentClients: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
   const { user } = useAuth();
 
   const getToken = () => user?.token || null;
@@ -54,14 +52,11 @@ const CeQueDisentClients: React.FC = () => {
       console.error("Error fetching comments:", error);
     } finally {
       setLoading(false);
-      setRefreshing(false);
+      
     }
   };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchComments();
-  };
+ 
 
   // Function to get the user's profile image
   const getUserProfileImage = (comment: Comment) => {
@@ -98,16 +93,7 @@ const CeQueDisentClients: React.FC = () => {
       </Text>
 
       {comments.length === 0 ? (
-        <ScrollView
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={["#04D9E7"]}
-              tintColor="#04D9E7"
-            />
-          }
-        >
+        <ScrollView>
           <Text style={styles.noCommentsText}>Aucun commentaire pour le moment</Text>
         </ScrollView>
       ) : (
@@ -119,14 +105,6 @@ const CeQueDisentClients: React.FC = () => {
             style={[styles.cardsWrapper, { overflow: "visible" }]}
             onScroll={handleScroll}
             scrollEventThrottle={16}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={["#04D9E7"]}
-                tintColor="#04D9E7"
-              />
-            }
           >
             {comments.map((comment, i) => (
               <View key={comment.idCom} style={styles.clientCard}>

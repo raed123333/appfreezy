@@ -401,7 +401,7 @@ const OurOffersComponent = () => {
 
         <View style={isHovered ? styles.firstcardLine : styles.secondecardLine} />
 
-        {(offre.attributs || []).map((f, idx) => (
+        {(Array.isArray(offre.attributs) ? offre.attributs : JSON.parse(offre.attributs || '[]')).map((f, idx) => (
           <View style={styles.buttonRow} key={idx}>
             <Image
               source={isHovered ? require("../../assets/images/check.png") : require("../../assets/images/secondecheck.png")}
