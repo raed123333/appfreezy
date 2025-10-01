@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import GoogleButton from "../components/GoogleButton";
 import { useAuth } from "./../context/AuthContext";
 
 const { width, height } = Dimensions.get("window");
@@ -115,6 +116,7 @@ const LogIn = () => {
           style={styles.search}
         />
       </View>
+        
     </ScrollView>
   );
 };

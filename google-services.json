@@ -12,7 +12,20 @@
           "package_name": "com.jabri_raed.freezyCorp"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "92623667761-tqmnpi2k3iatj54ok5s49624sh4epkkl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jabri_raed.freezyCorp",
+            "certificate_hash": "315232c5c77cb0dd1ae8b7c2afb51fe0e7a97cf7"
+          }
+        },
+        {
+          "client_id": "92623667761-s29dbr7ist4daev7c1jj0k22kur6amtr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyChoLmDDXlrk-1Lnp6SX9HonvZD4XNzeBg"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "92623667761-s29dbr7ist4daev7c1jj0k22kur6amtr.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "92623667761-4b5vjn3a22k2sivl7tloeeqv5698pmj2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jabriraed.freezyCorp"
+              }
+            }
+          ]
         }
       }
     }
