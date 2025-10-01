@@ -1,5 +1,5 @@
 import { AntDesign } from "@expo/vector-icons";
-import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
