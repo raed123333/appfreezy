@@ -116,7 +116,7 @@ const LogIn = () => {
           style={styles.search}
         />
       </View>
-        
+        <GoogleButton/>
     </ScrollView>
   );
 };
