@@ -1,7 +1,7 @@
 import { API } from "@/config";
 import { StripeProvider, useStripe } from "@stripe/stripe-react-native";
 import axios from "axios";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, Dimensions, Image, ImageBackground, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from '../context/AuthContext';
@@ -321,6 +321,24 @@ const OurOffersComponent = () => {
           )[0] || null;
 
           setActiveSubscription(latestActivePayment);
+          
+          // Show success message with option to go to RendezVous
+          Alert.alert(
+            "Félicitations!",
+            "Votre abonnement a été activé avec succès! Vous pouvez maintenant prendre rendez-vous.",
+            [
+              {
+                text: "Prendre Rendez-vous",
+                onPress: () => {
+                  router.navigate('/RendezVous');
+                }
+              },
+              {
+                text: "Continuer",
+                style: "cancel"
+              }
+            ]
+          );
         }
       }
     } catch (err) {

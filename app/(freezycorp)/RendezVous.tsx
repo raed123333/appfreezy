@@ -1,3 +1,4 @@
+import { API } from '@/config';
 import { Picker } from '@react-native-picker/picker';
 import axios from 'axios';
 import { Link, router } from "expo-router";
@@ -5,7 +6,6 @@ import React, { useEffect, useState } from "react";
 import { Alert, Dimensions, Image, ImageBackground, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Calendar } from 'react-native-calendars';
 import { useAuth } from '../context/AuthContext';
-import { API } from '@/config';
 
 const { width, height } = Dimensions.get("window");
 
@@ -21,6 +21,8 @@ const RendezVous = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [holidays, setHolidays] = useState<{dateConge: string}[]>([]);
   const [interventionLimits, setInterventionLimits] = useState<any>(null);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [refreshSubscription, setRefreshSubscription] = useState(0);
 
   const getUserId = () => {
     if (user?.idU) return user.idU;
@@ -31,19 +33,63 @@ const RendezVous = () => {
 
   const getToken = () => user?.token || null;
 
+  // Check if user has active subscription
+  useEffect(() => {
+    const checkUserSubscription = async () => {
+      try {
+        if (!user) {
+          setHasActiveSubscription(false);
+          return;
+        }
+
+        const token = user?.token || null;
+        
+        if (!token) {
+          setHasActiveSubscription(false);
+          return;
+        }
+
+        const response = await fetch(`${API}/payment/history`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const payments = await response.json();
+          
+          const hasSucceededPayments = payments.some((payment: any) => 
+            payment.status === 'succeeded' || payment.status === 'completed'
+          );
+          
+          setHasActiveSubscription(hasSucceededPayments);
+        } else {
+          setHasActiveSubscription(false);
+        }
+      } catch (error) {
+        console.error("Error checking subscription:", error);
+        setHasActiveSubscription(false);
+      }
+    };
+
+    checkUserSubscription();
+  }, [user, refreshSubscription]);
+
   useEffect(() => {
     const userId = getUserId();
-    if (userId) {
+    if (userId && hasActiveSubscription) {
       fetchUserAppointments(userId);
       fetchAllAppointments();
       fetchHolidays();
       fetchInterventionLimits();
     }
-  }, [user]);
+  }, [user, hasActiveSubscription]);
 
   useEffect(() => {
-    if (selectedDate) fetchAvailableTimeSlots(selectedDate);
-  }, [selectedDate]);
+    if (selectedDate && hasActiveSubscription) fetchAvailableTimeSlots(selectedDate);
+  }, [selectedDate, hasActiveSubscription]);
 
   const fetchInterventionLimits = async () => {
     try {
@@ -72,7 +118,7 @@ const RendezVous = () => {
   const onRefresh = async () => {
     setRefreshing(true);
     const userId = getUserId();
-    if (userId) {
+    if (userId && hasActiveSubscription) {
       await fetchUserAppointments(userId);
       await fetchAllAppointments();
       await fetchHolidays();
@@ -81,6 +127,8 @@ const RendezVous = () => {
         await fetchAvailableTimeSlots(selectedDate);
       }
     }
+    // Always refresh subscription status on pull-to-refresh
+    setRefreshSubscription(prev => prev + 1);
     setRefreshing(false);
   };
 
@@ -153,6 +201,26 @@ const RendezVous = () => {
   };
 
   const handleDatePress = (day: any) => {
+    if (!hasActiveSubscription) {
+      Alert.alert(
+        "Abonnement Requis",
+        "Acheter un offre pour avant chose un rendez-vous",
+        [
+          {
+            text: "Voir les offres",
+            onPress: () => {
+              router.navigate('/OurOffers');
+            }
+          },
+          {
+            text: "Annuler",
+            style: "cancel"
+          }
+        ]
+      );
+      return;
+    }
+
     const isHoliday = holidays.some(holiday => holiday.dateConge === day.dateString);
     if (isHoliday) {
       setErrorMessage("Cette date est un jour de congé, veuillez choisir une autre date.");
@@ -165,6 +233,26 @@ const RendezVous = () => {
   };
 
   const handleAddReservation = async () => {
+    if (!hasActiveSubscription) {
+      Alert.alert(
+        "Abonnement Requis",
+        "Acheter un offre pour avant chose un rendez-vous",
+        [
+          {
+            text: "Voir les offres",
+            onPress: () => {
+              router.navigate('/OurOffers');
+            }
+          },
+          {
+            text: "Annuler",
+            style: "cancel"
+          }
+        ]
+      );
+      return;
+    }
+
     if (!selectedDate || !selectedTime) {
       setErrorMessage("Veuillez sélectionner une date et une heure.");
       return;
@@ -184,7 +272,7 @@ const RendezVous = () => {
 
     try {
       const token = getToken();
-      const response = await axios.post('${API}/appointment/', {
+      const response = await axios.post(`${API}/appointment/`, {
         utilisateurId: userId,
         dateAppoi: selectedDate,
         timeAppoi: selectedTime
@@ -278,6 +366,29 @@ const RendezVous = () => {
   };
 
   const renderInterventionLimits = () => {
+    if (!hasActiveSubscription) {
+      return (
+        <View style={styles.limitCard}>
+          <Text style={styles.limitTitle}>Abonnement Requis</Text>
+          <Text style={styles.limitError}>
+            Vous devez acheter une offre pour prendre un rendez-vous
+          </Text>
+          <TouchableOpacity 
+            style={styles.subscriptionButton}
+            onPress={() => router.navigate('/OurOffers')}
+          >
+            <Text style={styles.subscriptionButtonText}>Voir les offres</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.subscriptionButton, { backgroundColor: '#013743', marginTop: 10 }]}
+            onPress={() => setRefreshSubscription(prev => prev + 1)}
+          >
+            <Text style={styles.subscriptionButtonText}>Actualiser le statut</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     if (!interventionLimits) return null;
 
     if (!interventionLimits.allowed) {
@@ -351,130 +462,134 @@ const RendezVous = () => {
 
           {renderInterventionLimits()}
 
-          <View style={styles.holidayCard}>
-            <Text style={styles.holidayCardTitle}>Jours de Congé</Text>
-            {holidays.length > 0 ? (
-              holidays.map((holiday, index) => (
-                <View style={styles.holidayItem} key={index}>
-                  <Text style={styles.holidayDate}>{holiday.dateConge}</Text>
-                </View>
-              ))
-            ) : (
-              <Text style={styles.historique}>Aucun jour de congé programmé</Text>
-            )}
-          </View>
-
-          <View style={styles.secondecard}>
-            <Text style={styles.secondecardTitle}>Tous les Rendez-vous</Text>
-            {allAppointments.filter(item => item.statusAppoi !== "effectué").length > 0 ? (
-              allAppointments
-                .filter(item => item.statusAppoi !== "effectué")
-                .map((item, index) => (
-                  <View style={styles.specialbuttonRow} key={item.idAppoin}>
-                    <View>
-                      <Text style={styles.titlechiffre}>Réservation #{index+1}</Text> 
-                      <Text style={styles.historique}>{item.date}, {item.time}</Text>
-                      <Text style={styles.historique}>
-                        Utilisateur: {item.user?.nom} {item.user?.prenom}
-                      </Text>
-                      <Text style={styles.historique}>
-                        Statut: {item.statusAppoi}
-                      </Text>
+          {hasActiveSubscription && (
+            <>
+              <View style={styles.holidayCard}>
+                <Text style={styles.holidayCardTitle}>Jours de Congé</Text>
+                {holidays.length > 0 ? (
+                  holidays.map((holiday, index) => (
+                    <View style={styles.holidayItem} key={index}>
+                      <Text style={styles.holidayDate}>{holiday.dateConge}</Text>
                     </View>
-                  </View>
-                ))
-            ) : (
-              <Text style={styles.historique}>Aucun rendez-vous trouvé</Text>
-            )}
-          </View>
-
-          <View style={styles.secondecard}>
-            <Text style={styles.secondecardTitle}>Mes Rendez-vous</Text>
-            {preBookedDates.filter(item => item.statusAppoi !== "effectué").length > 0 ? (
-              preBookedDates
-                .filter(item => item.statusAppoi !== "effectué")
-                .map((item, index) => (
-                  <View style={styles.specialbuttonRow} key={item.idAppoin}>
-                    <View>
-                      <Text style={styles.titlechiffre}>Réservation #{index+1}</Text> 
-                      <Text style={styles.historique}>{item.date}, {item.time}</Text>
-                      <Text style={styles.historique}>
-                        Statut: {item.statusAppoi}
-                      </Text>
-                    </View>
-                    {(item.statusAppoi !== "confirmé" && item.statusAppoi!=="effectué") && (
-                      <TouchableOpacity onPress={() => handleCancelAppointment(item.idAppoin)}>
-                        <Text style={styles.cancelText}>Annuler</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                ))
-            ) : (
-              <Text style={styles.historique}>Aucun rendez-vous prévu</Text>
-            )}
-          </View>
-
-          <View style={styles.firstcard}>
-            <Text style={styles.firstcardTitle}>Choisir la date</Text>
-            <View style={styles.firstcardLine} />
-
-            <Calendar
-              onDayPress={handleDatePress}
-              markingType={'custom'}
-              markedDates={getMarkedDates()}
-              theme={{
-                backgroundColor: '#013743',
-                calendarBackground: '#013743',
-                textSectionTitleColor: '#fff',
-                selectedDayBackgroundColor: '#04D9E7',
-                selectedDayTextColor: '#fff',
-                todayTextColor: '#04D9E7',
-                dayTextColor: '#fff',
-                arrowColor: '#04D9E7',
-                monthTextColor: '#04D9E7',
-                disabledArrowColor: '#d9e1e8',
-              }}
-              hideExtraDays={true}
-              firstDay={1}
-              enableSwipeMonths={true}
-              disabledByDefault={false}
-            />
-
-            <View style={{ 
-              borderColor: '#fff', 
-              borderWidth: 2, 
-              borderRadius: 20, 
-              width: width * 0.8, 
-              marginTop: 15,
-              overflow: 'hidden',
-              backgroundColor: 'transparent'
-            }}>
-              <Picker
-                selectedValue={selectedTime}
-                onValueChange={(itemValue) => setSelectedTime(itemValue)}
-                style={{ color: '#fff', width: '100%' }}
-                dropdownIconColor="#04D9E7"
-              >
-                {availableSlots.length > 0 ? (
-                  availableSlots.map(time => (
-                    <Picker.Item key={time} label={time} value={time} />
                   ))
                 ) : (
-                  <Picker.Item label="Aucun créneau disponible" value="" />
+                  <Text style={styles.historique}>Aucun jour de congé programmé</Text>
                 )}
-              </Picker>
-            </View>
+              </View>
 
-            <TouchableOpacity 
-              style={[styles.firstcardButton, (availableSlots.length === 0 || (interventionLimits && !interventionLimits.allowed)) && { opacity: 0.5 }]} 
-              onPress={handleAddReservation}
-              disabled={availableSlots.length === 0 || (interventionLimits && !interventionLimits.allowed)}
-            >
-              <Text style={styles.cardButtonText}>
-                {selectedDate ? `Réserver: ${selectedDate} ${selectedTime}` : "Sélectionner date et heure"}
-              </Text>
-            </TouchableOpacity>
-          </View>
+              <View style={styles.secondecard}>
+                <Text style={styles.secondecardTitle}>Tous les Rendez-vous</Text>
+                {allAppointments.filter(item => item.statusAppoi !== "effectué").length > 0 ? (
+                  allAppointments
+                    .filter(item => item.statusAppoi !== "effectué")
+                    .map((item, index) => (
+                      <View style={styles.specialbuttonRow} key={item.idAppoin}>
+                        <View>
+                          <Text style={styles.titlechiffre}>Réservation #{index+1}</Text> 
+                          <Text style={styles.historique}>{item.date}, {item.time}</Text>
+                          <Text style={styles.historique}>
+                            Utilisateur: {item.user?.nom} {item.user?.prenom}
+                          </Text>
+                          <Text style={styles.historique}>
+                            Statut: {item.statusAppoi}
+                          </Text>
+                        </View>
+                      </View>
+                    ))
+                ) : (
+                  <Text style={styles.historique}>Aucun rendez-vous trouvé</Text>
+                )}
+              </View>
+
+              <View style={styles.secondecard}>
+                <Text style={styles.secondecardTitle}>Mes Rendez-vous</Text>
+                {preBookedDates.filter(item => item.statusAppoi !== "effectué").length > 0 ? (
+                  preBookedDates
+                    .filter(item => item.statusAppoi !== "effectué")
+                    .map((item, index) => (
+                      <View style={styles.specialbuttonRow} key={item.idAppoin}>
+                        <View>
+                          <Text style={styles.titlechiffre}>Réservation #{index+1}</Text> 
+                          <Text style={styles.historique}>{item.date}, {item.time}</Text>
+                          <Text style={styles.historique}>
+                            Statut: {item.statusAppoi}
+                          </Text>
+                        </View>
+                        {(item.statusAppoi !== "confirmé" && item.statusAppoi!=="effectué") && (
+                          <TouchableOpacity onPress={() => handleCancelAppointment(item.idAppoin)}>
+                            <Text style={styles.cancelText}>Annuler</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ))
+                ) : (
+                  <Text style={styles.historique}>Aucun rendez-vous prévu</Text>
+                )}
+              </View>
+
+              <View style={styles.firstcard}>
+                <Text style={styles.firstcardTitle}>Choisir la date</Text>
+                <View style={styles.firstcardLine} />
+
+                <Calendar
+                  onDayPress={handleDatePress}
+                  markingType={'custom'}
+                  markedDates={getMarkedDates()}
+                  theme={{
+                    backgroundColor: '#013743',
+                    calendarBackground: '#013743',
+                    textSectionTitleColor: '#fff',
+                    selectedDayBackgroundColor: '#04D9E7',
+                    selectedDayTextColor: '#fff',
+                    todayTextColor: '#04D9E7',
+                    dayTextColor: '#fff',
+                    arrowColor: '#04D9E7',
+                    monthTextColor: '#04D9E7',
+                    disabledArrowColor: '#d9e1e8',
+                  }}
+                  hideExtraDays={true}
+                  firstDay={1}
+                  enableSwipeMonths={true}
+                  disabledByDefault={false}
+                />
+
+                <View style={{ 
+                  borderColor: '#fff', 
+                  borderWidth: 2, 
+                  borderRadius: 20, 
+                  width: width * 0.8, 
+                  marginTop: 15,
+                  overflow: 'hidden',
+                  backgroundColor: 'transparent'
+                }}>
+                  <Picker
+                    selectedValue={selectedTime}
+                    onValueChange={(itemValue) => setSelectedTime(itemValue)}
+                    style={{ color: '#fff', width: '100%' }}
+                    dropdownIconColor="#04D9E7"
+                  >
+                    {availableSlots.length > 0 ? (
+                      availableSlots.map(time => (
+                        <Picker.Item key={time} label={time} value={time} />
+                      ))
+                    ) : (
+                      <Picker.Item label="Aucun créneau disponible" value="" />
+                    )}
+                  </Picker>
+                </View>
+
+                <TouchableOpacity 
+                  style={[styles.firstcardButton, (availableSlots.length === 0 || (interventionLimits && !interventionLimits.allowed)) && { opacity: 0.5 }]} 
+                  onPress={handleAddReservation}
+                  disabled={availableSlots.length === 0 || (interventionLimits && !interventionLimits.allowed)}
+                >
+                  <Text style={styles.cardButtonText}>
+                    {selectedDate ? `Réserver: ${selectedDate} ${selectedTime}` : "Sélectionner date et heure"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -659,6 +774,19 @@ const styles = StyleSheet.create({
     fontSize: width * 0.04,
     color: "#FF6B6B",
     textAlign: "center",
+    fontWeight: "bold",
+    marginBottom: 10
+  },
+  subscriptionButton: {
+    backgroundColor: "#04D9E7",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 10
+  },
+  subscriptionButtonText: {
+    color: "#FFFFFF",
+    fontSize: width * 0.04,
     fontWeight: "bold"
   }
 });
