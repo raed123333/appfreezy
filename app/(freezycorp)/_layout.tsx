@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from "expo-router";
+import { Tabs, router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Image, Platform, Text, View } from "react-native";
+import { Alert, Image, Platform, Text, View } from "react-native";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from '../context/AuthContext';
 
 // ✅ Import your custom icons
+import { API } from '@/config';
 import AbonnementIcon from "../../assets/images/iconAbonnement.png";
 import HomeIcon from "../../assets/images/iconAccueil.png";
 import OffersIcon from "../../assets/images/iconNosOffres.png";
 import ProfileIcon from "../../assets/images/iconProfile.png";
-import { API } from '@/config';
 
 // Custom tab with icon and label in the same line
 function CustomTabIcon({ icon, label, color, focused, isIonicon = false }: 
@@ -81,6 +81,7 @@ function CustomTabIcon({ icon, label, color, focused, isIonicon = false }:
 export default function FreezyCorpLayout() {
   const { user } = useAuth();
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [refreshSubscription, setRefreshSubscription] = useState(0);
 
   // Check if user has an active subscription
   useEffect(() => {
@@ -126,7 +127,39 @@ export default function FreezyCorpLayout() {
     };
 
     checkUserSubscription();
-  }, [user]);
+  }, [user, refreshSubscription]);
+
+  // Function to handle RendezVous tab press
+  const handleRendezVousPress = (e: any) => {
+    if (!hasActiveSubscription) {
+      // Prevent default navigation
+      e.preventDefault();
+      
+      // Show alert
+      Alert.alert(
+        "Abonnement Requis",
+        "Acheter un offre pour avant chose un rendez-vous",
+        [
+          {
+            text: "Voir les offres",
+            onPress: () => {
+              // Navigate to OurOffers page
+              router.navigate('/OurOffers');
+            }
+          },
+          {
+            text: "Annuler",
+            style: "cancel"
+          }
+        ]
+      );
+    }
+  };
+
+  // Function to refresh subscription status (can be called from other components)
+  const refreshSubscriptionStatus = () => {
+    setRefreshSubscription(prev => prev + 1);
+  };
 
   return (
     <ProtectedRoute>
@@ -171,6 +204,12 @@ export default function FreezyCorpLayout() {
               <CustomTabIcon icon={OffersIcon} label="" color={color} focused={focused} />
             ),
           }}
+          listeners={{
+            tabPress: () => {
+              // Refresh subscription status when navigating to OurOffers
+              refreshSubscriptionStatus();
+            },
+          }}
         />
 
         <Tabs.Screen
@@ -183,24 +222,25 @@ export default function FreezyCorpLayout() {
           }}
         />
 
-        {/* ✅ Rendez-vous Tab - Only show if user has purchased an offer */}
-        {hasActiveSubscription && (
-          <Tabs.Screen
-            name="RendezVous"
-            options={{
-              title: "Rendez-vous",
-              tabBarIcon: ({ color, focused }) => (
-                <CustomTabIcon
-                  icon="calendar-outline"
-                  label=""
-                  color={color}
-                  focused={focused}
-                  isIonicon
-                />
-              ),
-            }}
-          />
-        )}
+        {/* ✅ Rendez-vous Tab - Always show but handle click based on subscription status */}
+        <Tabs.Screen
+          name="RendezVous"
+          options={{
+            title: "Rendez-vous",
+            tabBarIcon: ({ color, focused }) => (
+              <CustomTabIcon
+                icon="calendar-outline"
+                label=""
+                color={color}
+                focused={focused}
+                isIonicon
+              />
+            ),
+          }}
+          listeners={{
+            tabPress: (e) => handleRendezVousPress(e),
+          }}
+        />
 
         <Tabs.Screen
           name="Abonnement"
@@ -210,6 +250,12 @@ export default function FreezyCorpLayout() {
               <CustomTabIcon icon={AbonnementIcon} label="" color={color} focused={focused} />
             ),
           }}
+          listeners={{
+            tabPress: () => {
+              // Refresh subscription status when navigating to Abonnement
+              refreshSubscriptionStatus();
+            },
+          }}
         />
 
         {/* ❌ Hide auto detected screens */}
@@ -218,11 +264,6 @@ export default function FreezyCorpLayout() {
         <Tabs.Screen name="NosOffres" options={{ href: null }} />
         <Tabs.Screen name="CeQueDisentClients" options={{ href: null }} />
         <Tabs.Screen name="AddComment" options={{ href: null }} />
-        
-        {/* Hide RendezVous tab if user doesn't have subscription */}
-        {!hasActiveSubscription && (
-          <Tabs.Screen name="RendezVous" options={{ href: null }} />
-        )}
       </Tabs>
     </ProtectedRoute>
   );
