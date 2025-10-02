@@ -124,7 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
 
       // Call your backend signup/login endpoint
-      const response = await fetch(`${API}/utilisateur`, {
+      const response = await fetch(`${API}/utilisateur/LoginGoogle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userPayload),
