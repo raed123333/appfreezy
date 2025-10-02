@@ -22,7 +22,7 @@ const LogIn = () => {
   const [motpasse, setMotpasse] = useState("azerty");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, register } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !motpasse) {
@@ -62,7 +62,7 @@ const LogIn = () => {
             />
             <Text style={styles.title}>Connexion</Text>
             <Text style={styles.sectionText}>
-              Accédez à votre espace sécurisé et pilotez vos{'\n'} 
+              Accédez à votre espace sécurisé et pilotez vos{'\n'}
               interventions en toute simplicité.
             </Text>
           </View>
@@ -87,7 +87,7 @@ const LogIn = () => {
           value={motpasse}
           onChangeText={setMotpasse}
         />
-        
+
         {/* Updated Forgot Password Link */}
         <Link href="/forgotPassword" asChild>
           <TouchableOpacity>
@@ -95,8 +95,8 @@ const LogIn = () => {
           </TouchableOpacity>
         </Link>
 
-        <TouchableOpacity 
-          style={[styles.secondeButton, isLoading && styles.disabledButton]} 
+        <TouchableOpacity
+          style={[styles.secondeButton, isLoading && styles.disabledButton]}
           onPress={handleLogin}
           disabled={isLoading}
         >
@@ -116,7 +116,7 @@ const LogIn = () => {
           style={styles.search}
         />
       </View>
-        <GoogleButton/>
+      <GoogleButton onPress={register} />
     </ScrollView>
   );
 };

@@ -18,10 +18,11 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   register: (userData: any) => Promise<void>;
+  registerGoogle: (googleData: any) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   verifyResetCode: (email: string, code: string) => Promise<void>;
-  resetPasswordWithCode: (email: string, code: string ,  newPassword:String ) => Promise<void>;
+  resetPasswordWithCode: (email: string, code: string, newPassword: String) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -66,10 +67,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (response.ok) {
         const data = await response.json();
         const userData = { ...data, token: data.token };
-        
+
         await SecureStore.setItemAsync('userData', JSON.stringify(userData));
         await SecureStore.setItemAsync('authToken', data.token);
-        
+
         setUser(userData);
       } else {
         const errorData = await response.json();
@@ -96,12 +97,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // After successful registration, automatically log the user in
       await login(userData.email, userData.motpasse);
-      
+
     } catch (error) {
+      
       Alert.alert("Erreur", error.message || "Impossible de créer le compte");
       throw error;
     }
   };
+
+
+  ////////////////////////////////////////////////- REGISTER GOOGLE  -//////////////////////////////////////////////////////////////////////
+
+  const registerGoogle = async (googleData: any) => {
+    try {
+      // Extract only what you need from Google’s response
+      const { email, givenName, familyName } = googleData.user;
+
+      const userPayload = {
+        nom: familyName || "",
+        prenom: givenName || "",
+        email,
+        nomEntreprise: "", // optional, or set default
+        adresse: "",       // optional, or set default
+        telephone: "",     // optional, or set default
+        //      image: photo || null,
+      };
+
+      // Call your backend signup/login endpoint
+      const response = await fetch(`${API}/utilisateur`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userPayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Google signup failed");
+      }
+
+      const data = await response.json();
+      const userData = { ...data, token: data.token };
+
+      await SecureStore.setItemAsync("userData", JSON.stringify(userData));
+      await SecureStore.setItemAsync("authToken", data.token);
+
+      setUser(userData);
+    } catch (error: any) {
+      Alert.alert("Erreur", error.message || "Impossible de créer le compte avec Google");
+      throw error;
+    }
+  };
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 
   const logout = async () => {
     try {
@@ -136,22 +185,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   //verify code 
-   const verifyResetCode = async (email:String, code:String) => {
+  const verifyResetCode = async (email: String, code: String) => {
     console.log(email, code);
-  const response = await fetch(`${API}/utilisateur/verifyResetCode`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ email, code }),
-  });
+    const response = await fetch(`${API}/utilisateur/verifyResetCode`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, code }),
+    });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw data;
-  }
-  return data;
-};
+    const data = await response.json();
+    if (!response.ok) {
+      throw data;
+    }
+    return data;
+  };
 
 
   // ADDED: Reset Password Function
@@ -198,15 +247,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isLoading, 
-      login, 
-      logout, 
+    <AuthContext.Provider value={{
+      user,
+      isLoading,
+      login,
+      logout,
       register,
       forgotPassword, // ADDED
       resetPassword,
       verifyResetCode,
+      registerGoogle,
       resetPasswordWithCode // ADDED
     }}>
       {children}

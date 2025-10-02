@@ -1,3 +1,4 @@
+import * as ImagePicker from 'expo-image-picker';
 import { Link, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -12,8 +13,8 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import GoogleButton from "../components/GoogleButton";
 import { useAuth } from "./../context/AuthContext";
-import * as ImagePicker from 'expo-image-picker';
 
 const { width, height } = Dimensions.get("window");
 
@@ -29,7 +30,7 @@ const sinUp = () => {
   const [image, setImage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, registerGoogle } = useAuth();
 
   const pickImage = async () => {
     try {
@@ -81,7 +82,7 @@ const sinUp = () => {
         motpasse,
         image,
       });
-      
+
       Alert.alert("Succès", "Compte créé avec succès", [
         {
           text: "OK",
@@ -111,7 +112,7 @@ const sinUp = () => {
             />
             <Text style={styles.title}>Créez votre compte Freezy Corp</Text>
             <Text style={styles.sectionText}>
-              Accédez à toutes nos offres et gérez vos interventions{'\n'} 
+              Accédez à toutes nos offres et gérez vos interventions{'\n'}
               depuis votre espace client.
             </Text>
           </View>
@@ -190,8 +191,8 @@ const sinUp = () => {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={[styles.secondeButton, isLoading && styles.disabledButton]} 
+        <TouchableOpacity
+          style={[styles.secondeButton, isLoading && styles.disabledButton]}
           onPress={handleRegister}
           disabled={isLoading}
         >
@@ -207,6 +208,7 @@ const sinUp = () => {
           </Link>
         </View>
       </View>
+      <GoogleButton onPress={registerGoogle} />
     </ScrollView>
   );
 };

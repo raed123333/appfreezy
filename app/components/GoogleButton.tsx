@@ -3,7 +3,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-const GoogleButton = () => {
+const GoogleButton = ({onPress}:any) => {
   useEffect(() => {
     GoogleSignin.configure({
       webClientId:
@@ -16,6 +16,7 @@ const GoogleButton = () => {
       await GoogleSignin.hasPlayServices();
       const user = await GoogleSignin.signIn();
       console.log(user);
+      onPress(user)
     } catch (e: any) {
       console.log(e);
     }
