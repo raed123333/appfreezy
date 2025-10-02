@@ -1,3 +1,4 @@
+import { API } from '@/config';
 import { Picker } from '@react-native-picker/picker';
 import axios from 'axios';
 import { Link, router } from "expo-router";
@@ -5,7 +6,6 @@ import React, { useEffect, useState } from "react";
 import { Alert, Dimensions, Image, ImageBackground, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Calendar } from 'react-native-calendars';
 import { useAuth } from '../context/AuthContext';
-import { API } from '@/config';
 
 const { width, height } = Dimensions.get("window");
 
@@ -184,7 +184,7 @@ const RendezVous = () => {
 
     try {
       const token = getToken();
-      const response = await axios.post('${API}/appointment/', {
+      const response = await axios.post(`${API}/appointment/`, {
         utilisateurId: userId,
         dateAppoi: selectedDate,
         timeAppoi: selectedTime

@@ -18,7 +18,7 @@ import { useAuth } from "./../context/AuthContext";
 const { width, height } = Dimensions.get("window");
 
 const LogIn = () => {
-  const [email, setEmail] = useState("ghassen@gmail.com");
+  const [email, setEmail] = useState("jabri@gmail.com");
   const [motpasse, setMotpasse] = useState("azerty");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
