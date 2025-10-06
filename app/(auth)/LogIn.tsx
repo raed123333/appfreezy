@@ -22,7 +22,7 @@ const LogIn = () => {
   const [motpasse, setMotpasse] = useState("azerty");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { login, register,registerGoogle } = useAuth();
+  const { login ,registerGoogle } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !motpasse) {
