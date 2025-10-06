@@ -1,8 +1,7 @@
 import { WEB_CLIENT_ID } from "@/config";
-import { AntDesign } from "@expo/vector-icons";
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { useEffect } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, TouchableOpacity } from "react-native";
 
 const GoogleButton = ({ onPress }: any) => {
   useEffect(() => {
@@ -15,8 +14,8 @@ const GoogleButton = ({ onPress }: any) => {
     try {
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
-      let user = response.data.user
-      onPress(user)
+      let user = response.data.user;
+      onPress(user);
     } catch (e: any) {
       console.log(e);
     }
@@ -24,40 +23,28 @@ const GoogleButton = ({ onPress }: any) => {
 
   return (
     <TouchableOpacity style={styles.button} onPress={signin} activeOpacity={0.8}>
-      <View style={styles.content}>
-        <AntDesign name="google" size={22} color="white" style={styles.icon} />
-        <Text style={styles.text}>Se connecter avec Google</Text>
-      </View>
+      <Image
+        source={require("@/assets/google.png")} // 👈 your PNG file path
+        style={styles.image}
+        resizeMode="contain"
+      />
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: "#DB4437", // Google red
     borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    elevation: 3, // Android shadow
-    shadowColor: "#000", // iOS shadow
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    width: "100%",
-  },
-  content: {
-    flexDirection: "row",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center",
+    width: "100%",
+ 
   },
-  icon: {
-    marginRight: 10,
-  },
-  text: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
+  image: {
+    width: 180, // adjust as needed
+    height: 40,
   },
 });
 

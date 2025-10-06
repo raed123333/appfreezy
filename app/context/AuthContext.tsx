@@ -1,4 +1,5 @@
 import { API } from '@/config';
+import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
@@ -38,6 +39,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     loadUser();
@@ -116,7 +118,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userPayload = {
         nom: familyName || "",
         prenom: givenName || "",
-        email:email,
+        email: email,
         nomEntreprise: "", // optional, or set default
         adresse: "",       // optional, or set default
         telephone: "",     // optional, or set default
@@ -137,11 +139,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const data = await response.json();
       const userData = { ...data, token: data.token };
+      console.log(userData.utilisateur, "tessst");
 
       await SecureStore.setItemAsync("userData", JSON.stringify(userData));
       await SecureStore.setItemAsync("authToken", data.token);
 
+
+
       setUser(userData);
+
+      Alert.alert("Succès", "Connexion réussie", [
+        {
+          text: "OK",
+          onPress: () => router.push("../(freezycorp)/Home"),
+        },
+      ]);
     } catch (error: any) {
       Alert.alert("Erreur", error.message || "Impossible de créer le compte avec Google");
       throw error;

@@ -111,10 +111,7 @@ const LogIn = () => {
             <Text style={styles.MotTextTwo}> Inscrivez-vous</Text>
           </Link>
         </View>
-        <Image
-          source={require("../../assets/images/search.png")}
-          style={styles.search}
-        />
+    
       </View>
       <GoogleButton onPress={registerGoogle} />
     </ScrollView>
