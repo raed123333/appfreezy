@@ -99,7 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await login(userData.email, userData.motpasse);
 
     } catch (error) {
-      
+
       Alert.alert("Erreur", error.message || "Impossible de créer le compte");
       throw error;
     }
@@ -111,12 +111,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const registerGoogle = async (googleData: any) => {
     try {
       // Extract only what you need from Google’s response
-      const { email, givenName, familyName } = googleData.user;
+      const { email, givenName, familyName } = googleData;
 
       const userPayload = {
         nom: familyName || "",
         prenom: givenName || "",
-        email,
+        email:email,
         nomEntreprise: "", // optional, or set default
         adresse: "",       // optional, or set default
         telephone: "",     // optional, or set default

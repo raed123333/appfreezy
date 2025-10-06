@@ -1,21 +1,21 @@
+import { WEB_CLIENT_ID } from "@/config";
 import { AntDesign } from "@expo/vector-icons";
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-const GoogleButton = ({onPress}:any) => {
+const GoogleButton = ({ onPress }: any) => {
   useEffect(() => {
     GoogleSignin.configure({
-      webClientId:
-        "92623667761-s29dbr7ist4daev7c1jj0k22kur6amtr.apps.googleusercontent.com",
+      webClientId: WEB_CLIENT_ID
     });
   }, []);
 
   const signin = async () => {
     try {
       await GoogleSignin.hasPlayServices();
-      const user = await GoogleSignin.signIn();
-      console.log(user);
+      const response = await GoogleSignin.signIn();
+      let user = response.data.user
       onPress(user)
     } catch (e: any) {
       console.log(e);
