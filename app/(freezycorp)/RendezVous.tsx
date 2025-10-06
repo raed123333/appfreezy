@@ -12,14 +12,14 @@ const { width, height } = Dimensions.get("window");
 const RendezVous = () => {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("09:00");
-  const [preBookedDates, setPreBookedDates] = useState<{idAppoin: number, date: string, time: string, statusAppoi: string}[]>([]);
-  const [allAppointments, setAllAppointments] = useState<{idAppoin: number, date: string, time: string, statusAppoi: string, user: any}[]>([]);
+  const [preBookedDates, setPreBookedDates] = useState<{ idAppoin: number, date: string, time: string, statusAppoi: string }[]>([]);
+  const [allAppointments, setAllAppointments] = useState<{ idAppoin: number, date: string, time: string, statusAppoi: string, user: any }[]>([]);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [successMessage, setSuccessMessage] = useState<string>("");
   const { user, logout } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
-  const [holidays, setHolidays] = useState<{dateConge: string}[]>([]);
+  const [holidays, setHolidays] = useState<{ dateConge: string }[]>([]);
   const [interventionLimits, setInterventionLimits] = useState<any>(null);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [refreshSubscription, setRefreshSubscription] = useState(0);
@@ -43,7 +43,7 @@ const RendezVous = () => {
         }
 
         const token = user?.token || null;
-        
+
         if (!token) {
           setHasActiveSubscription(false);
           return;
@@ -59,11 +59,11 @@ const RendezVous = () => {
 
         if (response.ok) {
           const payments = await response.json();
-          
-          const hasSucceededPayments = payments.some((payment: any) => 
+
+          const hasSucceededPayments = payments.some((payment: any) =>
             payment.status === 'succeeded' || payment.status === 'completed'
           );
-          
+
           setHasActiveSubscription(hasSucceededPayments);
         } else {
           setHasActiveSubscription(false);
@@ -158,7 +158,7 @@ const RendezVous = () => {
         setPreBookedDates([]);
       }
     }
-};
+  };
   const fetchAllAppointments = async () => {
     try {
       const token = getToken();
@@ -190,7 +190,7 @@ const RendezVous = () => {
 
       const data = response.data;
       setAvailableSlots(data.availableSlots || []);
-      
+
       if (selectedTime && !data.availableSlots.includes(selectedTime)) {
         setSelectedTime(data.availableSlots[0] || "");
       }
@@ -226,7 +226,7 @@ const RendezVous = () => {
       setErrorMessage("Cette date est un jour de congé, veuillez choisir une autre date.");
       return;
     }
-    
+
     setSelectedDate(day.dateString);
     setErrorMessage("");
     setSuccessMessage("");
@@ -301,7 +301,9 @@ const RendezVous = () => {
 
   const handleCancelAppointment = async (idAppoin: number) => {
     try {
+      
       const token = getToken();
+      
       await axios.patch(`${API}/appointment/${idAppoin}/cancel`, {}, {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -333,21 +335,21 @@ const RendezVous = () => {
 
   const getMarkedDates = () => {
     const markedDates: any = {};
-    
+
     if (selectedDate) {
       markedDates[selectedDate] = { selected: true, selectedColor: '#04D9E7' };
     }
-    
+
     preBookedDates.forEach(item => {
       if (item.statusAppoi === 'Non_confirmé' || item.statusAppoi === 'confirmé') {
         markedDates[item.date] = { disabled: true, marked: true, dotColor: "red" };
       }
     });
-    
+
     holidays.forEach(holiday => {
-      markedDates[holiday.dateConge] = { 
-        disabled: true, 
-        marked: true, 
+      markedDates[holiday.dateConge] = {
+        disabled: true,
+        marked: true,
         dotColor: "orange",
         customStyles: {
           container: {
@@ -361,7 +363,7 @@ const RendezVous = () => {
         }
       };
     });
-    
+
     return markedDates;
   };
 
@@ -373,13 +375,13 @@ const RendezVous = () => {
           <Text style={styles.limitError}>
             Vous devez acheter une offre pour prendre un rendez-vous
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.subscriptionButton}
             onPress={() => router.navigate('/OurOffers')}
           >
             <Text style={styles.subscriptionButtonText}>Voir les offres</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.subscriptionButton, { backgroundColor: '#013743', marginTop: 10 }]}
             onPress={() => setRefreshSubscription(prev => prev + 1)}
           >
@@ -412,7 +414,7 @@ const RendezVous = () => {
       </View>
     );
   };
-  
+
   return (
     <View style={{ flex: 1 }}>
       <View style={styles.container}>
@@ -425,7 +427,7 @@ const RendezVous = () => {
           <View style={styles.specialbuttonRow}>
             <TouchableOpacity onPress={handleLogout}>
               <Image
-                source={require("../../assets/images/iconBack.png")}                          
+                source={require("../../assets/images/iconBack.png")}
                 style={styles.icon}
               />
             </TouchableOpacity>
@@ -441,7 +443,7 @@ const RendezVous = () => {
         </ImageBackground>
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={{ paddingTop: height * 0.1 + 10 }}
         refreshControl={
           <RefreshControl
@@ -485,12 +487,12 @@ const RendezVous = () => {
                     .map((item, index) => (
                       <View style={styles.specialbuttonRow} key={item.idAppoin}>
                         <View>
-                          <Text style={styles.titlechiffre}>Réservation #{index+1}</Text> 
+                          <Text style={styles.titlechiffre}>Réservation #{index + 1}</Text>
                           <Text style={styles.historique}>{item.date}, {item.time}</Text>
                           <Text style={styles.historique}>
                             Utilisateur: {item.user?.nom} {item.user?.prenom}
                           </Text>
-                          <Text style={styles.historique}>
+                          <Text style={[styles.historique, { color: item.statusAppoi == "confirmé" ? "green" : item.statusAppoi == "Non_confirmé" ? "orange":"red" }]}>
                             Statut: {item.statusAppoi}
                           </Text>
                         </View>
@@ -509,13 +511,13 @@ const RendezVous = () => {
                     .map((item, index) => (
                       <View style={styles.specialbuttonRow} key={item.idAppoin}>
                         <View>
-                          <Text style={styles.titlechiffre}>Réservation #{index+1}</Text> 
+                          <Text style={styles.titlechiffre}>Réservation #{index + 1}</Text>
                           <Text style={styles.historique}>{item.date}, {item.time}</Text>
                           <Text style={styles.historique}>
                             Statut: {item.statusAppoi}
                           </Text>
                         </View>
-                        {(item.statusAppoi !== "confirmé" && item.statusAppoi!=="effectué") && (
+                        {(item.statusAppoi !== "confirmé" && item.statusAppoi !== "effectué") && (
                           <TouchableOpacity onPress={() => handleCancelAppointment(item.idAppoin)}>
                             <Text style={styles.cancelText}>Annuler</Text>
                           </TouchableOpacity>
@@ -553,11 +555,11 @@ const RendezVous = () => {
                   disabledByDefault={false}
                 />
 
-                <View style={{ 
-                  borderColor: '#fff', 
-                  borderWidth: 2, 
-                  borderRadius: 20, 
-                  width: width * 0.8, 
+                <View style={{
+                  borderColor: '#fff',
+                  borderWidth: 2,
+                  borderRadius: 20,
+                  width: width * 0.8,
                   marginTop: 15,
                   overflow: 'hidden',
                   backgroundColor: 'transparent'
@@ -578,8 +580,8 @@ const RendezVous = () => {
                   </Picker>
                 </View>
 
-                <TouchableOpacity 
-                  style={[styles.firstcardButton, (availableSlots.length === 0 || (interventionLimits && !interventionLimits.allowed)) && { opacity: 0.5 }]} 
+                <TouchableOpacity
+                  style={[styles.firstcardButton, (availableSlots.length === 0 || (interventionLimits && !interventionLimits.allowed)) && { opacity: 0.5 }]}
                   onPress={handleAddReservation}
                   disabled={availableSlots.length === 0 || (interventionLimits && !interventionLimits.allowed)}
                 >
@@ -598,119 +600,119 @@ const RendezVous = () => {
 
 const styles = StyleSheet.create({
   container: {
-     position: "absolute", 
-     top: 0, 
-     left: 0, 
-     right: 0, 
-     zIndex: 1000, 
-     height: height * 0.1 
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    height: height * 0.1
+  },
+  background: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 100,
+    overflow: "hidden"
+  },
+  blueOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#013743"
+  },
+  inputContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20
+  },
+  icon: {
+    marginTop: 10,
+    width: 20,
+    height: 30,
+    resizeMode: "contain"
+  },
+  firstcard: {
+    width: width * 0.9,
+    backgroundColor: "#013743",
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20
+  },
+  firstcardTitle: {
+    fontSize: width * 0.05,
+    fontWeight: "bold",
+    color: "#04D9E7",
+    marginBottom: 10,
+    textAlign: "center"
+  },
+  firstcardLine: {
+    width: "95%",
+    height: 1.5,
+    backgroundColor: "#FFFFFF",
+    marginBottom: 20
+  },
+  firstcardButton: {
+    width: width * 0.8,
+    backgroundColor: "transparent",
+    paddingVertical: 12,
+    borderRadius: 20,
+    borderColor: "#FFFFFF",
+    borderWidth: 2,
+    marginTop: 20
+  },
+  cardButtonText: {
+    color: "#fff",
+    fontSize: width * 0.05,
+    fontWeight: "bold",
+    textAlign: "center"
+  },
+  specialbuttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 15,
+    width: "100%",
+    paddingHorizontal: 20
+  },
+  secondecard: {
+    width: width * 0.9,
+    backgroundColor: "#F4F5FA",
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 3
     },
-  background: { 
-    flex: 1, 
-    justifyContent: "center", 
-    alignItems: "center", 
-    borderRadius: 100, 
-    overflow: "hidden" 
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5
   },
-  blueOverlay: { 
-    ...StyleSheet.absoluteFillObject, 
-    backgroundColor: "#013743" 
+  secondecardTitle: {
+    fontSize: width * 0.08,
+    fontWeight: "bold",
+    color: "#04D9E7",
+    marginBottom: 10,
+    textAlign: "center"
   },
-  inputContainer: { 
-    flex: 1, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    marginTop: 20 
+  titlechiffre: {
+    fontSize: width * 0.03,
+    fontWeight: "bold",
+    color: "#828282"
   },
-  icon: { 
-    marginTop: 10, 
-    width: 20, 
-    height: 30, 
-    resizeMode: "contain" 
+  historique: {
+    fontSize: width * 0.03,
+    color: "#828282",
+    marginTop: 2
   },
-  firstcard: { 
-    width: width * 0.9, 
-    backgroundColor: "#013743", 
-    borderRadius: 12, 
-    padding: 20, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    marginTop: 20 
-  },
-  firstcardTitle: { 
-    fontSize: width * 0.05, 
-    fontWeight: "bold", 
-    color: "#04D9E7", 
-    marginBottom: 10, 
-    textAlign: "center" 
-  },
-  firstcardLine: { 
-    width: "95%", 
-    height: 1.5, 
-    backgroundColor: "#FFFFFF", 
-    marginBottom: 20 
-  },
-  firstcardButton: { 
-    width: width * 0.8, 
-    backgroundColor: "transparent", 
-    paddingVertical: 12, 
-    borderRadius: 20, 
-    borderColor: "#FFFFFF", 
-    borderWidth: 2, 
-    marginTop: 20 
-  },
-  cardButtonText: { 
-    color: "#fff", 
-    fontSize: width * 0.05, 
-    fontWeight: "bold", 
-    textAlign: "center" 
-  },
-  specialbuttonRow: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    alignItems: "center", 
-    marginTop: 15, 
-    width: "100%", 
-    paddingHorizontal: 20 
-  },
-  secondecard: { 
-    width: width * 0.9, 
-    backgroundColor: "#F4F5FA", 
-    borderRadius: 12, 
-    padding: 20, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    marginTop: 20, 
-    shadowColor: "#000", 
-    shadowOffset: { 
-      width: 0, 
-      height: 3 
-    }, 
-    shadowOpacity: 0.2, 
-    shadowRadius: 4, 
-    elevation: 5 
-  },
-  secondecardTitle: { 
-    fontSize: width * 0.08, 
-    fontWeight: "bold", 
-    color: "#04D9E7", 
-    marginBottom: 10, 
-    textAlign: "center" 
-  },
-  titlechiffre: { 
-    fontSize: width * 0.03, 
-    fontWeight: "bold", 
-    color: "#828282" 
-  },
-  historique: { 
-    fontSize: width * 0.03, 
-    color: "#828282", 
-    marginTop: 2 
-  },
-  cancelText: { 
-    color: 'red', 
-    fontSize: width * 0.035, 
-    fontWeight: 'bold' 
+  cancelText: {
+    color: 'red',
+    fontSize: width * 0.035,
+    fontWeight: 'bold'
   },
   holidayCard: {
     width: width * 0.9,
