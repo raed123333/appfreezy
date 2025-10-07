@@ -71,7 +71,7 @@ class PDFService {
                 <strong>Date:</strong> ${new Date().toLocaleDateString('fr-FR')}
             </div>
             
-            <div class="section-title">DÉTAILS DE LA TRANSACTION</div>
+            <div class="section-title">Reçu de transaction</div>
             
             <div class="detail-row">
                 <span class="detail-label">ID Transaction:</span>

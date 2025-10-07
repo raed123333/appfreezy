@@ -15,7 +15,7 @@ const { width, height } = Dimensions.get("window");
 
 const data = [
   {
-    title: "Bienvenue sur FreezyCorp",
+    title: "Bienvenue sur FreezyCorp ",
     description: "Votre partenaire premium en climatisation, maintenance et solutions techniques.Simplifiez la gestion de vos projets et gagnez en sérénité, dès aujourd’hui.",
   },
   {
