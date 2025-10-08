@@ -17,6 +17,7 @@ const { width } = Dimensions.get("window");
 
 const Menu = () => {
   const { user, isLoading, logout } = useAuth();
+  const [imageError, setImageError] = React.useState(false);
 
   // Function to get the user's display name
   const getUserDisplayName = () => {
@@ -69,10 +70,14 @@ const Menu = () => {
 
     // If we have an image path and it's not a default asset, construct the URL
     if (imagePath && !imagePath.startsWith('http')) {
-      // Assuming your server is running on the same IP as your API
-      return { uri: `${API}/uploads/${imagePath}` };
+      // Add cache busting parameter to prevent caching
+      const cacheBuster = `?t=${new Date().getTime()}`;
+      return { uri: `${API}/uploads/${imagePath}${cacheBuster}` };
     } else if (imagePath && imagePath.startsWith('http')) {
-      return { uri: imagePath };
+      // Add cache busting parameter for external URLs
+      const cacheBuster = `&t=${new Date().getTime()}`;
+      const separator = imagePath.includes('?') ? '&' : '?';
+      return { uri: `${imagePath}${separator}${cacheBuster}` };
     } else if (imagePath && imagePath.startsWith('data:image')) {
       // Handle base64 images directly
       return { uri: imagePath };
@@ -89,6 +94,22 @@ const Menu = () => {
     } catch (error) {
       console.error('Error during logout:', error);
     }
+  };
+
+  // Generate unique key for image to force re-render
+  const getImageKey = () => {
+    if (!user) return 'default';
+    
+    let imagePath = null;
+    if (user.utilisateur && user.utilisateur.image) {
+      imagePath = user.utilisateur.image;
+    } else if (user.image) {
+      imagePath = user.image;
+    } else if (user.parent && user.parent.image) {
+      imagePath = user.parent.image;
+    }
+    
+    return imagePath || 'default';
   };
 
   return (
@@ -117,10 +138,12 @@ const Menu = () => {
           <Image
             source={getUserProfileImage()}
             style={styles.profileImg}
+            key={getImageKey()}
             onError={(e) => {
               console.log("Error loading profile image:", e.nativeEvent.error);
-              // If there's an error loading the image, it will fall back to the default
+              setImageError(true);
             }}
+            onLoad={() => setImageError(false)}
           />
           <Text style={styles.nameText}>{getUserDisplayName()}</Text>
         </View>

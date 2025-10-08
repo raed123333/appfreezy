@@ -1,21 +1,21 @@
+import { API } from '@/config';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from "expo-router";
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from "react";
 import {
-    Dimensions,
-    Image,
-    ImageBackground,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Dimensions,
+  Image,
+  ImageBackground,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { useAuth } from "./../context/AuthContext";
-import { API } from '@/config';
 
 const { width, height } = Dimensions.get("window");
 
