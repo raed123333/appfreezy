@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, Image, Platform, Text, View } from "react-native";
+import { Alert, Image, Modal, Platform, Text, TouchableOpacity, View, Dimensions } from "react-native";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from '../context/AuthContext';
 
@@ -11,6 +11,8 @@ import AbonnementIcon from "../../assets/images/iconAbonnement.png";
 import HomeIcon from "../../assets/images/iconAccueil.png";
 import OffersIcon from "../../assets/images/iconNosOffres.png";
 import ProfileIcon from "../../assets/images/iconProfile.png";
+
+const { width } = Dimensions.get("window");
 
 // Custom tab with icon and label in the same line
 function CustomTabIcon({ icon, label, color, focused, isIonicon = false }: 
@@ -82,6 +84,7 @@ export default function FreezyCorpLayout() {
   const { user } = useAuth();
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [refreshSubscription, setRefreshSubscription] = useState(0);
+  const [showCustomAlert, setShowCustomAlert] = useState(false);
 
   // Check if user has an active subscription
   useEffect(() => {
@@ -135,25 +138,20 @@ export default function FreezyCorpLayout() {
       // Prevent default navigation
       e.preventDefault();
       
-      // Show alert
-      Alert.alert(
-        "Abonnement Requis",
-        "Acheter un offre pour avant chose un rendez-vous",
-        [
-          {
-            text: "Voir les offres",
-            onPress: () => {
-              // Navigate to OurOffers page
-              router.navigate('/OurOffers');
-            }
-          },
-          {
-            text: "Annuler",
-            style: "cancel"
-          }
-        ]
-      );
+      // Show custom alert instead of native alert
+      setShowCustomAlert(true);
     }
+  };
+
+  // Function to handle custom alert close
+  const handleCustomAlertClose = () => {
+    setShowCustomAlert(false);
+  };
+
+  // Function to handle "Voir les offres" button press
+  const handleViewOffers = () => {
+    setShowCustomAlert(false);
+    router.navigate('/OurOffers');
   };
 
   // Function to refresh subscription status (can be called from other components)
@@ -163,6 +161,41 @@ export default function FreezyCorpLayout() {
 
   return (
     <ProtectedRoute>
+      {/* Custom Alert Modal */}
+      <Modal
+        visible={showCustomAlert}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCustomAlertClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.customAlert}>
+            <View style={styles.alertHeader}>
+              <Text style={styles.alertTitle}>Abonnement Requis</Text>
+            </View>
+            <View style={styles.alertBody}>
+              <Text style={styles.alertMessage}>
+                Acheter un offre pour avant chose un rendez-vous
+              </Text>
+            </View>
+            <View style={styles.alertFooter}>
+              <TouchableOpacity 
+                style={[styles.alertButton, styles.alertButtonSecondary]}
+                onPress={handleCustomAlertClose}
+              >
+                <Text style={[styles.alertButtonText, styles.alertButtonSecondaryText]}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.alertButton}
+                onPress={handleViewOffers}
+              >
+                <Text style={styles.alertButtonText}>Voir les offres</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -268,3 +301,83 @@ export default function FreezyCorpLayout() {
     </ProtectedRoute>
   );
 }
+
+const styles = {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  customAlert: {
+    width: width * 0.85,
+    backgroundColor: '#013743',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10
+  },
+  alertHeader: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertTitle: {
+    fontSize: width * 0.06,
+    fontWeight: 'bold',
+    color: '#013743',
+    textAlign: 'center'
+  },
+  alertBody: {
+    padding: 25,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertMessage: {
+    fontSize: width * 0.045,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontWeight: '500'
+  },
+  alertFooter: {
+    padding: 20,
+    paddingTop: 10,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10
+  },
+  alertButton: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    minWidth: 120,
+    flex: 1
+  },
+  alertButtonSecondary: {
+    backgroundColor: 'transparent',
+    borderColor: '#04D9E7'
+  },
+  alertButtonText: {
+    color: '#013743',
+    fontSize: width * 0.04,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
+  alertButtonSecondaryText: {
+    color: '#04D9E7'
+  }
+};

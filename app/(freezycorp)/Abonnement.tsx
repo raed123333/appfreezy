@@ -1,6 +1,6 @@
 import { Link, router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Dimensions, Image, ImageBackground, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Dimensions, Image, ImageBackground, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import PDFService from '../services/PDFService';
 import { API } from "@/config";
@@ -34,6 +34,33 @@ const Abonnement = () => {
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCustomAlert, setShowCustomAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({ 
+    title: '', 
+    message: '', 
+    onConfirm: null as (() => void) | null 
+  });
+
+  // Function to show custom alert
+  const showCustomAlertMessage = (title: string, message: string, onConfirm?: () => void) => {
+    setAlertConfig({
+      title,
+      message,
+      onConfirm: onConfirm || null
+    });
+    setShowCustomAlert(true);
+  };
+
+  const handleCustomAlertClose = () => {
+    setShowCustomAlert(false);
+  };
+
+  const handleCustomAlertConfirm = () => {
+    if (alertConfig.onConfirm) {
+      alertConfig.onConfirm();
+    }
+    setShowCustomAlert(false);
+  };
 
   // Chargement initial
   useEffect(() => {
@@ -148,10 +175,9 @@ const Abonnement = () => {
       
     } catch (error) {
       console.error('Download error:', error);
-      Alert.alert(
+      showCustomAlertMessage(
         "Erreur",
-        "Impossible de télécharger le PDF",
-        [{ text: "OK" }]
+        "Impossible de télécharger le PDF"
       );
     } finally {
       setDownloadingId(null);
@@ -217,6 +243,35 @@ const Abonnement = () => {
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Custom Alert Modal */}
+      <Modal
+        visible={showCustomAlert}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCustomAlertClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.customAlert}>
+            <View style={styles.alertHeader}>
+              <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+            </View>
+            <View style={styles.alertBody}>
+              <Text style={styles.alertMessage}>
+                {alertConfig.message}
+              </Text>
+            </View>
+            <View style={styles.alertFooter}>
+              <TouchableOpacity 
+                style={styles.alertButton}
+                onPress={alertConfig.onConfirm ? handleCustomAlertConfirm : handleCustomAlertClose}
+              >
+                <Text style={styles.alertButtonText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Fixed top container */}
       <View style={styles.container}>
         <View style={styles.blueOverlay} />
@@ -514,6 +569,73 @@ const styles = StyleSheet.create({
     color: '#828282',
     textAlign: 'center',
     marginTop: 20
+  },
+  // Custom Alert Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  customAlert: {
+    width: width * 0.85,
+    backgroundColor: '#013743',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10
+  },
+  alertHeader: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertTitle: {
+    fontSize: width * 0.06,
+    fontWeight: 'bold',
+    color: '#013743',
+    textAlign: 'center'
+  },
+  alertBody: {
+    padding: 25,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertMessage: {
+    fontSize: width * 0.045,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontWeight: '500'
+  },
+  alertFooter: {
+    padding: 20,
+    paddingTop: 10,
+    alignItems: 'center'
+  },
+  alertButton: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    minWidth: 120
+  },
+  alertButtonText: {
+    color: '#013743',
+    fontSize: width * 0.045,
+    fontWeight: 'bold',
+    textAlign: 'center'
   }
 });
 

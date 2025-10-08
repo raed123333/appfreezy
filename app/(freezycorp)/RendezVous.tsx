@@ -3,7 +3,7 @@ import { Picker } from '@react-native-picker/picker';
 import axios from 'axios';
 import { Link, router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, Dimensions, Image, ImageBackground, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Dimensions, Image, ImageBackground, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Calendar } from 'react-native-calendars';
 import { useAuth } from '../context/AuthContext';
 
@@ -23,6 +23,8 @@ const RendezVous = () => {
   const [interventionLimits, setInterventionLimits] = useState<any>(null);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [refreshSubscription, setRefreshSubscription] = useState(0);
+  const [showCustomAlert, setShowCustomAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: '', onPress: null as (() => void) | null });
 
   const getUserId = () => {
     if (user?.idU) return user.idU;
@@ -200,23 +202,22 @@ const RendezVous = () => {
     }
   };
 
+  const showCustomAlertMessage = (title: string, message: string, onPress?: () => void) => {
+    setAlertConfig({
+      title,
+      message,
+      type: 'info',
+      onPress: onPress || null
+    });
+    setShowCustomAlert(true);
+  };
+
   const handleDatePress = (day: any) => {
     if (!hasActiveSubscription) {
-      Alert.alert(
+      showCustomAlertMessage(
         "Abonnement Requis",
         "Acheter un offre pour avant chose un rendez-vous",
-        [
-          {
-            text: "Voir les offres",
-            onPress: () => {
-              router.navigate('/OurOffers');
-            }
-          },
-          {
-            text: "Annuler",
-            style: "cancel"
-          }
-        ]
+        () => router.navigate('/OurOffers')
       );
       return;
     }
@@ -234,21 +235,10 @@ const RendezVous = () => {
 
   const handleAddReservation = async () => {
     if (!hasActiveSubscription) {
-      Alert.alert(
+      showCustomAlertMessage(
         "Abonnement Requis",
         "Acheter un offre pour avant chose un rendez-vous",
-        [
-          {
-            text: "Voir les offres",
-            onPress: () => {
-              router.navigate('/OurOffers');
-            }
-          },
-          {
-            text: "Annuler",
-            style: "cancel"
-          }
-        ]
+        () => router.navigate('/OurOffers')
       );
       return;
     }
@@ -283,40 +273,61 @@ const RendezVous = () => {
         }
       });
 
-      setSuccessMessage("Rendez-vous réservé avec succès!");
-      setErrorMessage("");
-      fetchUserAppointments(userId);
-      fetchAllAppointments();
-      fetchAvailableTimeSlots(selectedDate);
-      fetchInterventionLimits();
+      // Show custom success alert for reservation
+      setAlertConfig({
+        title: 'Succès',
+        message: 'Votre demande de prise de rendez-vous a été effectuée avec succès. ✅',
+        type: 'success'
+      });
+      setShowCustomAlert(true);
 
     } catch (error: any) {
       console.log(error);
       if (error.response?.data?.error) {
-        Alert.alert("Erreur", error.response.data.error);
+        showCustomAlertMessage("Erreur", error.response.data.error);
       }
       setErrorMessage(error.response?.data?.error || "Erreur de connexion au serveur");
     }
   };
 
+  const handleCustomAlertClose = () => {
+    setShowCustomAlert(false);
+    
+    // Execute custom onPress function if provided
+    if (alertConfig.onPress) {
+      alertConfig.onPress();
+    }
+    
+    // Handle success cases
+    if (alertConfig.title === 'Succès') {
+      const userId = getUserId();
+      if (userId) {
+        setSuccessMessage(alertConfig.message.includes('annulé') ? "Rendez-vous annulé avec succès!" : "Rendez-vous réservé avec succès!");
+        setErrorMessage("");
+        fetchUserAppointments(userId);
+        fetchAllAppointments();
+        fetchAvailableTimeSlots(selectedDate);
+        fetchInterventionLimits();
+      }
+    }
+  };
+
   const handleCancelAppointment = async (idAppoin: number) => {
     try {
-      
       const token = getToken();
       
-      await axios.patch(`${API}/appointment/${idAppoin}/cancel`, {}, {
+      // FIXED: Using DELETE method correctly without empty config object
+      await axios.delete(`${API}/appointment/${idAppoin}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
 
-      setSuccessMessage("Rendez-vous annulé avec succès!");
-      setErrorMessage("");
-      const userId = getUserId();
-      if (userId) {
-        fetchUserAppointments(userId);
-        fetchInterventionLimits();
-      }
-      fetchAllAppointments();
-      if (selectedDate) fetchAvailableTimeSlots(selectedDate);
+      // Show custom success alert for cancellation
+      setAlertConfig({
+        title: 'Succès',
+        message: 'Votre rendez-vous a été annulé avec succès. ✅',
+        type: 'success'
+      });
+      setShowCustomAlert(true);
 
     } catch (error: any) {
       console.error("Error canceling appointment:", error.response || error.message);
@@ -365,6 +376,21 @@ const RendezVous = () => {
     });
 
     return markedDates;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "confirmé":
+        return "green";
+      case "Non_confirmé":
+        return "orange";
+      case "annulé":
+        return "red";
+      case "effectué":
+        return "blue";
+      default:
+        return "#828282";
+    }
   };
 
   const renderInterventionLimits = () => {
@@ -417,6 +443,52 @@ const RendezVous = () => {
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Custom Alert Modal for all alerts */}
+      <Modal
+        visible={showCustomAlert}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCustomAlertClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.customAlert}>
+            <View style={styles.alertHeader}>
+              <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+            </View>
+            <View style={styles.alertBody}>
+              <Text style={styles.alertMessage}>
+                {alertConfig.message}
+              </Text>
+            </View>
+            <View style={styles.alertFooter}>
+              {alertConfig.title === 'Abonnement Requis' ? (
+                <>
+                  <TouchableOpacity 
+                    style={[styles.alertButton, styles.alertButtonSecondary]}
+                    onPress={handleCustomAlertClose}
+                  >
+                    <Text style={styles.alertButtonText}>Annuler</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.alertButton}
+                    onPress={handleCustomAlertClose}
+                  >
+                    <Text style={styles.alertButtonText}>Voir les offres</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.alertButton}
+                  onPress={handleCustomAlertClose}
+                >
+                  <Text style={styles.alertButtonText}>OK</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.container}>
         <View style={styles.blueOverlay} />
         <ImageBackground
@@ -479,29 +551,7 @@ const RendezVous = () => {
                 )}
               </View>
 
-              <View style={styles.secondecard}>
-                <Text style={styles.secondecardTitle}>Tous les Rendez-vous</Text>
-                {allAppointments.filter(item => item.statusAppoi !== "effectué").length > 0 ? (
-                  allAppointments
-                    .filter(item => item.statusAppoi !== "effectué")
-                    .map((item, index) => (
-                      <View style={styles.specialbuttonRow} key={item.idAppoin}>
-                        <View>
-                          <Text style={styles.titlechiffre}>Réservation #{index + 1}</Text>
-                          <Text style={styles.historique}>{item.date}, {item.time}</Text>
-                          <Text style={styles.historique}>
-                            Utilisateur: {item.user?.nom} {item.user?.prenom}
-                          </Text>
-                          <Text style={[styles.historique, { color: item.statusAppoi == "confirmé" ? "green" : item.statusAppoi == "Non_confirmé" ? "orange":"red" }]}>
-                            Statut: {item.statusAppoi}
-                          </Text>
-                        </View>
-                      </View>
-                    ))
-                ) : (
-                  <Text style={styles.historique}>Aucun rendez-vous trouvé</Text>
-                )}
-              </View>
+              {/* REMOVED: Tous les Rendez-vous section */}
 
               <View style={styles.secondecard}>
                 <Text style={styles.secondecardTitle}>Mes Rendez-vous</Text>
@@ -509,19 +559,27 @@ const RendezVous = () => {
                   preBookedDates
                     .filter(item => item.statusAppoi !== "effectué")
                     .map((item, index) => (
-                      <View style={styles.specialbuttonRow} key={item.idAppoin}>
-                        <View>
+                      <View style={styles.appointmentItem} key={item.idAppoin}>
+                        <View style={styles.appointmentInfo}>
                           <Text style={styles.titlechiffre}>Réservation #{index + 1}</Text>
                           <Text style={styles.historique}>{item.date}, {item.time}</Text>
-                          <Text style={styles.historique}>
+                          <Text style={[styles.statusText, { color: getStatusColor(item.statusAppoi) }]}>
                             Statut: {item.statusAppoi}
                           </Text>
                         </View>
-                        {(item.statusAppoi !== "confirmé" && item.statusAppoi !== "effectué") && (
-                          <TouchableOpacity onPress={() => handleCancelAppointment(item.idAppoin)}>
+                        {/* CHANGED: Show cancel button only for "Non_confirmé" status */}
+                        {item.statusAppoi === "Non_confirmé" ? (
+                          <TouchableOpacity 
+                            style={styles.cancelButton}
+                            onPress={() => handleCancelAppointment(item.idAppoin)}
+                          >
                             <Text style={styles.cancelText}>Annuler</Text>
                           </TouchableOpacity>
-                        )}
+                        ) : item.statusAppoi === "confirmé" ? (
+                          <View style={styles.confirmedBadge}>
+                            <Text style={styles.confirmedText}>Confirmé</Text>
+                          </View>
+                        ) : null}
                       </View>
                     ))
                 ) : (
@@ -555,15 +613,7 @@ const RendezVous = () => {
                   disabledByDefault={false}
                 />
 
-                <View style={{
-                  borderColor: '#fff',
-                  borderWidth: 2,
-                  borderRadius: 20,
-                  width: width * 0.8,
-                  marginTop: 15,
-                  overflow: 'hidden',
-                  backgroundColor: 'transparent'
-                }}>
+                <View style={styles.pickerContainer}>
                   <Picker
                     selectedValue={selectedTime}
                     onValueChange={(itemValue) => setSelectedTime(itemValue)}
@@ -699,24 +749,70 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: "center"
   },
+  appointmentItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 15,
+    width: "100%",
+    paddingHorizontal: 10,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    padding: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2
+  },
+  appointmentInfo: {
+    flex: 1
+  },
   titlechiffre: {
-    fontSize: width * 0.03,
+    fontSize: width * 0.035,
     fontWeight: "bold",
-    color: "#828282"
+    color: "#013743",
+    marginBottom: 4
   },
   historique: {
-    fontSize: width * 0.03,
+    fontSize: width * 0.033,
     color: "#828282",
     marginTop: 2
   },
+  statusText: {
+    fontSize: width * 0.033,
+    fontWeight: "bold",
+    marginTop: 4
+  },
+  cancelButton: {
+    backgroundColor: "#FF6B6B",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6
+  },
   cancelText: {
-    color: 'red',
-    fontSize: width * 0.035,
+    color: '#FFFFFF',
+    fontSize: width * 0.033,
+    fontWeight: 'bold'
+  },
+  // NEW: Styles for confirmed badge
+  confirmedBadge: {
+    backgroundColor: "#4CAF50",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6
+  },
+  confirmedText: {
+    color: '#FFFFFF',
+    fontSize: width * 0.033,
     fontWeight: 'bold'
   },
   holidayCard: {
     width: width * 0.9,
-    backgroundColor: "#FFFF",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 20,
     alignItems: "center",
@@ -790,6 +886,90 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: width * 0.04,
     fontWeight: "bold"
+  },
+  pickerContainer: {
+    borderColor: '#fff',
+    borderWidth: 2,
+    borderRadius: 20,
+    width: width * 0.8,
+    marginTop: 15,
+    overflow: 'hidden',
+    backgroundColor: 'transparent'
+  },
+  // NEW: Custom Alert Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  customAlert: {
+    width: width * 0.85,
+    backgroundColor: '#013743',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10
+  },
+  alertHeader: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertTitle: {
+    fontSize: width * 0.06,
+    fontWeight: 'bold',
+    color: '#013743',
+    textAlign: 'center'
+  },
+  alertBody: {
+    padding: 25,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertMessage: {
+    fontSize: width * 0.045,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontWeight: '500'
+  },
+  alertFooter: {
+    padding: 20,
+    paddingTop: 10,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10
+  },
+  alertButton: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    minWidth: 100,
+    flex: 1
+  },
+  alertButtonSecondary: {
+    backgroundColor: 'transparent',
+    borderColor: '#04D9E7'
+  },
+  alertButtonText: {
+    color: '#013743',
+    fontSize: width * 0.04,
+    fontWeight: 'bold',
+    textAlign: 'center'
   }
 });
 

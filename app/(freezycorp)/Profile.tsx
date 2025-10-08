@@ -3,10 +3,10 @@ import { router } from "expo-router";
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
     Dimensions,
     Image,
     ImageBackground,
+    Modal,
     ScrollView,
     StyleSheet,
     Text,
@@ -31,6 +31,42 @@ const Profile = () => {
   const [confirmMotpasse, setConfirmMotpasse] = useState("");
   const [image, setImage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showCustomAlert, setShowCustomAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({ 
+    title: '', 
+    message: '', 
+    onConfirm: null as (() => void) | null,
+    onCancel: null as (() => void) | null 
+  });
+
+  // Function to show custom alert
+  const showCustomAlertMessage = (title: string, message: string, onConfirm?: () => void, onCancel?: () => void) => {
+    setAlertConfig({
+      title,
+      message,
+      onConfirm: onConfirm || null,
+      onCancel: onCancel || null
+    });
+    setShowCustomAlert(true);
+  };
+
+  const handleCustomAlertClose = () => {
+    setShowCustomAlert(false);
+  };
+
+  const handleCustomAlertConfirm = () => {
+    if (alertConfig.onConfirm) {
+      alertConfig.onConfirm();
+    }
+    setShowCustomAlert(false);
+  };
+
+  const handleCustomAlertCancel = () => {
+    if (alertConfig.onCancel) {
+      alertConfig.onCancel();
+    }
+    setShowCustomAlert(false);
+  };
 
   // Load user data when component mounts
   useEffect(() => {
@@ -74,23 +110,23 @@ const Profile = () => {
       }
     } catch (err) {
       console.error("Error picking image:", err);
-      Alert.alert("Erreur", "Impossible de sélectionner l'image");
+      showCustomAlertMessage("Erreur", "Impossible de sélectionner l'image");
     }
   };
 
   const handleUpdateProfile = async () => {
     if (!nom || !prenom || !email || !nomEntreprise || !adresse || !telephone) {
-      Alert.alert("Erreur", "Veuillez remplir tous les champs obligatoires");
+      showCustomAlertMessage("Erreur", "Veuillez remplir tous les champs obligatoires");
       return;
     }
 
     if (motpasse && motpasse !== confirmMotpasse) {
-      Alert.alert("Erreur", "Les mots de passe ne correspondent pas");
+      showCustomAlertMessage("Erreur", "Les mots de passe ne correspondent pas");
       return;
     }
 
     if (motpasse && motpasse.length < 6) {
-      Alert.alert("Erreur", "Le mot de passe doit contenir au moins 6 caractères");
+      showCustomAlertMessage("Erreur", "Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
 
@@ -121,7 +157,7 @@ const Profile = () => {
 
       if (response.ok) {
         const updatedUser = await response.json();
-        Alert.alert("Succès", "Profil mis à jour avec succès");
+        showCustomAlertMessage("Succès", "Profil mis à jour avec succès");
         
         // Update local storage with new user data
         const currentUserData = await SecureStore.getItemAsync('userData');
@@ -138,33 +174,65 @@ const Profile = () => {
         const errorData = await response.json();
         throw new Error(errorData.error || "Échec de la mise à jour");
       }
-    } catch (error) {
-      Alert.alert("Erreur", error.message || "Impossible de mettre à jour le profil");
+    } catch (error: any) {
+      showCustomAlertMessage("Erreur", error.message || "Impossible de mettre à jour le profil");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleLogout = () => {
-    Alert.alert(
+    showCustomAlertMessage(
       "Déconnexion",
       "Êtes-vous sûr de vouloir vous déconnecter ?",
-      [
-        {
-          text: "Annuler",
-          style: "cancel"
-        },
-        { 
-          text: "Se déconnecter", 
-          onPress: () => logout(),
-          style: "destructive"
-        }
-      ]
+      () => logout(),
+      () => {} // Cancel action
     );
   };
 
   return (
     <ScrollView>
+      {/* Custom Alert Modal */}
+      <Modal
+        visible={showCustomAlert}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCustomAlertClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.customAlert}>
+            <View style={styles.alertHeader}>
+              <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+            </View>
+            <View style={styles.alertBody}>
+              <Text style={styles.alertMessage}>
+                {alertConfig.message}
+              </Text>
+            </View>
+            <View style={styles.alertFooter}>
+              {alertConfig.onCancel && (
+                <TouchableOpacity 
+                  style={[styles.alertButton, styles.alertButtonSecondary]}
+                  onPress={handleCustomAlertCancel}
+                >
+                  <Text style={[styles.alertButtonText, styles.alertButtonTextSecondary]}>
+                    Annuler
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity 
+                style={styles.alertButton}
+                onPress={alertConfig.onConfirm ? handleCustomAlertConfirm : handleCustomAlertClose}
+              >
+                <Text style={styles.alertButtonText}>
+                  {alertConfig.onConfirm ? "Se déconnecter" : "OK"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.container}>
         <View style={styles.blueOverlay} />
         <ImageBackground
@@ -179,7 +247,7 @@ const Profile = () => {
                 style={styles.icon}
               />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/(freezycorp)/Home')}>
+            <TouchableOpacity onPress={handleLogout}>
               <Image
                 source={require("../../assets/images/iconHome.png")}
                 style={styles.icon}
@@ -409,6 +477,84 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.6,
   },
+  // Custom Alert Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  customAlert: {
+    width: width * 0.85,
+    backgroundColor: '#013743',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10
+  },
+  alertHeader: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertTitle: {
+    fontSize: width * 0.06,
+    fontWeight: 'bold',
+    color: '#013743',
+    textAlign: 'center'
+  },
+  alertBody: {
+    padding: 25,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertMessage: {
+    fontSize: width * 0.045,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontWeight: '500'
+  },
+  alertFooter: {
+    padding: 20,
+    paddingTop: 10,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10
+  },
+  alertButton: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    minWidth: 120,
+    flex: 1
+  },
+  alertButtonSecondary: {
+    backgroundColor: 'transparent',
+    borderColor: '#04D9E7'
+  },
+  alertButtonText: {
+    color: '#013743',
+    fontSize: width * 0.04,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
+  alertButtonTextSecondary: {
+    color: '#04D9E7'
+  }
 });
 
 export default Profile;

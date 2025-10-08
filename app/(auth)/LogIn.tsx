@@ -1,10 +1,10 @@
 import { Link, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Dimensions,
   Image,
   ImageBackground,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,27 +18,75 @@ import { useAuth } from "./../context/AuthContext";
 const { width, height } = Dimensions.get("window");
 
 const LogIn = () => {
-  const [email, setEmail] = useState("benfoulen@gmail.com");
-  const [motpasse, setMotpasse] = useState("azerty");
+  const [email, setEmail] = useState("");
+  const [motpasse, setMotpasse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { login ,registerGoogle } = useAuth();
+  const [showCustomAlert, setShowCustomAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({ 
+    title: '', 
+    message: '', 
+    onConfirm: null as (() => void) | null 
+  });
+
+  // Function to show custom alert
+  const showCustomAlertMessage = (title: string, message: string, onConfirm?: () => void) => {
+    setAlertConfig({
+      title,
+      message,
+      onConfirm: onConfirm || null
+    });
+    setShowCustomAlert(true);
+  };
+
+  const handleCustomAlertClose = () => {
+    setShowCustomAlert(false);
+  };
+
+  const handleCustomAlertConfirm = () => {
+    if (alertConfig.onConfirm) {
+      alertConfig.onConfirm();
+    }
+    setShowCustomAlert(false);
+  };
+
+  // Email validation function
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Password validation function
+  const isValidPassword = (password: string) => {
+    return password.length >= 6;
+  };
 
   const handleLogin = async () => {
+    // Validate email format
     if (!email || !motpasse) {
-      Alert.alert("Erreur", "Veuillez remplir tous les champs");
+      showCustomAlertMessage("Erreur", "Veuillez remplir tous les champs");
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      showCustomAlertMessage("Erreur", "Veuillez entrer une adresse email valide");
+      return;
+    }
+
+    if (!isValidPassword(motpasse)) {
+      showCustomAlertMessage("Erreur", "Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
 
     setIsLoading(true);
     try {
       await login(email, motpasse);
-      Alert.alert("Succès", "Connexion réussie", [
-        {
-          text: "OK",
-          onPress: () => router.push("../(freezycorp)/Home"),
-        },
-      ]);
+      showCustomAlertMessage(
+        "Succès", 
+        "Connexion réussie ✅", 
+        () => router.push("../(freezycorp)/Home")
+      );
     } catch (error) {
       // Error handling is done in the AuthContext
     } finally {
@@ -48,6 +96,35 @@ const LogIn = () => {
 
   return (
     <ScrollView>
+      {/* Custom Alert Modal */}
+      <Modal
+        visible={showCustomAlert}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCustomAlertClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.customAlert}>
+            <View style={styles.alertHeader}>
+              <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+            </View>
+            <View style={styles.alertBody}>
+              <Text style={styles.alertMessage}>
+                {alertConfig.message}
+              </Text>
+            </View>
+            <View style={styles.alertFooter}>
+              <TouchableOpacity 
+                style={styles.alertButton}
+                onPress={alertConfig.onConfirm ? handleCustomAlertConfirm : handleCustomAlertClose}
+              >
+                <Text style={styles.alertButtonText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.container}>
         <View style={styles.blueOverlay} />
         <ImageBackground
@@ -113,7 +190,8 @@ const LogIn = () => {
         </View>
     
       </View>
-      <GoogleButton onPress={registerGoogle} />
+       <GoogleButton onPress={registerGoogle} /> 
+      
     </ScrollView>
   );
 };
@@ -216,6 +294,73 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.6,
   },
+  // Custom Alert Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  customAlert: {
+    width: width * 0.85,
+    backgroundColor: '#013743',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10
+  },
+  alertHeader: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertTitle: {
+    fontSize: width * 0.06,
+    fontWeight: 'bold',
+    color: '#013743',
+    textAlign: 'center'
+  },
+  alertBody: {
+    padding: 25,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertMessage: {
+    fontSize: width * 0.045,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontWeight: '500'
+  },
+  alertFooter: {
+    padding: 20,
+    paddingTop: 10,
+    alignItems: 'center'
+  },
+  alertButton: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    minWidth: 120
+  },
+  alertButtonText: {
+    color: '#013743',
+    fontSize: width * 0.045,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  }
 });
 
 export default LogIn;

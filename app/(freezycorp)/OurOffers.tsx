@@ -3,7 +3,19 @@ import { StripeProvider, useStripe } from "@stripe/stripe-react-native";
 import axios from "axios";
 import { Link, router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, Dimensions, Image, ImageBackground, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Dimensions,
+  Image,
+  ImageBackground,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
 import { useAuth } from '../context/AuthContext';
 
 const { width, height } = Dimensions.get("window");
@@ -20,6 +32,42 @@ const OurOffersComponent = () => {
   const [activeSubscription, setActiveSubscription] = useState(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCustomAlert, setShowCustomAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({ 
+    title: '', 
+    message: '', 
+    onConfirm: null as (() => void) | null,
+    onCancel: null as (() => void) | null 
+  });
+
+  // Function to show custom alert
+  const showCustomAlertMessage = (title: string, message: string, onConfirm?: () => void, onCancel?: () => void) => {
+    setAlertConfig({
+      title,
+      message,
+      onConfirm: onConfirm || null,
+      onCancel: onCancel || null
+    });
+    setShowCustomAlert(true);
+  };
+
+  const handleCustomAlertClose = () => {
+    setShowCustomAlert(false);
+  };
+
+  const handleCustomAlertConfirm = () => {
+    if (alertConfig.onConfirm) {
+      alertConfig.onConfirm();
+    }
+    setShowCustomAlert(false);
+  };
+
+  const handleCustomAlertCancel = () => {
+    if (alertConfig.onCancel) {
+      alertConfig.onCancel();
+    }
+    setShowCustomAlert(false);
+  };
 
   const getToken = () => user?.token || null;
 
@@ -250,10 +298,9 @@ const OurOffersComponent = () => {
   const handlePayment = async (price, offreId, offreTitle, duree) => {
     // Check if user can purchase new offer
     if (!canPurchaseNewOffer()) {
-      Alert.alert(
+      showCustomAlertMessage(
         "Abonnement actif",
-        "Vous avez déjà un abonnement en cours. Vous ne pouvez pas acheter une nouvelle offre avant la fin de votre abonnement actuel.",
-        [{ text: "OK" }]
+        "Vous avez déjà un abonnement en cours. Vous ne pouvez pas acheter une nouvelle offre avant la fin de votre abonnement actuel."
       );
       return;
     }
@@ -279,7 +326,7 @@ const OurOffersComponent = () => {
 
       if (initError) {
         console.error("Erreur initPaymentSheet:", initError.message);
-        Alert.alert("Erreur", initError.message);
+        showCustomAlertMessage("Erreur", initError.message);
         return;
       }
 
@@ -287,7 +334,7 @@ const OurOffersComponent = () => {
 
       if (paymentError) {
         console.log("Payment error:", paymentError);
-        Alert.alert("Erreur de paiement", paymentError.message);
+        showCustomAlertMessage("Erreur de paiement", paymentError.message);
       } else {
         const confirmResponse = await axios.post(
           `${API}/payment/confirm`,
@@ -299,7 +346,7 @@ const OurOffersComponent = () => {
         );
 
         console.log("Payment confirmed:", confirmResponse.data);
-        Alert.alert("Succès", "Paiement effectué avec succès!");
+        showCustomAlertMessage("Succès", "Paiement effectué avec succès!");
 
         // Refresh subscription data after successful payment
         const subscriptionResponse = await fetch(`${API}/payment/history`, {
@@ -323,21 +370,10 @@ const OurOffersComponent = () => {
           setActiveSubscription(latestActivePayment);
           
           // Show success message with option to go to RendezVous
-          Alert.alert(
+          showCustomAlertMessage(
             "Félicitations!",
             "Votre abonnement a été activé avec succès! Vous pouvez maintenant prendre rendez-vous.",
-            [
-              {
-                text: "Prendre Rendez-vous",
-                onPress: () => {
-                  router.navigate('/RendezVous');
-                }
-              },
-              {
-                text: "Continuer",
-                style: "cancel"
-              }
-            ]
+            () => router.navigate('/RendezVous')
           );
         }
       }
@@ -345,9 +381,9 @@ const OurOffersComponent = () => {
       console.error("Payment process error:", err);
       if (err.response) {
         console.error("Backend error response:", err.response.data);
-        Alert.alert("Erreur", err.response.data.error || "Erreur lors du paiement");
+        showCustomAlertMessage("Erreur", err.response.data.error || "Erreur lors du paiement");
       } else {
-        Alert.alert("Erreur", "Erreur de connexion");
+        showCustomAlertMessage("Erreur", "Erreur de connexion");
       }
     }
   };
@@ -474,6 +510,47 @@ const OurOffersComponent = () => {
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Custom Alert Modal */}
+      <Modal
+        visible={showCustomAlert}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCustomAlertClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.customAlert}>
+            <View style={styles.alertHeader}>
+              <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+            </View>
+            <View style={styles.alertBody}>
+              <Text style={styles.alertMessage}>
+                {alertConfig.message}
+              </Text>
+            </View>
+            <View style={styles.alertFooter}>
+              {alertConfig.onCancel && (
+                <TouchableOpacity 
+                  style={[styles.alertButton, styles.alertButtonSecondary]}
+                  onPress={handleCustomAlertCancel}
+                >
+                  <Text style={[styles.alertButtonText, styles.alertButtonTextSecondary]}>
+                    Continuer
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity 
+                style={styles.alertButton}
+                onPress={alertConfig.onConfirm ? handleCustomAlertConfirm : handleCustomAlertClose}
+              >
+                <Text style={styles.alertButtonText}>
+                  {alertConfig.onConfirm ? "Prendre Rendez-vous" : "OK"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.container}>
         <View style={styles.blueOverlay} />
         <ImageBackground
@@ -867,6 +944,84 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontStyle: 'italic',
   },
+  // Custom Alert Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  customAlert: {
+    width: width * 0.85,
+    backgroundColor: '#013743',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10
+  },
+  alertHeader: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertTitle: {
+    fontSize: width * 0.06,
+    fontWeight: 'bold',
+    color: '#013743',
+    textAlign: 'center'
+  },
+  alertBody: {
+    padding: 25,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertMessage: {
+    fontSize: width * 0.045,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontWeight: '500'
+  },
+  alertFooter: {
+    padding: 20,
+    paddingTop: 10,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10
+  },
+  alertButton: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    minWidth: 120,
+    flex: 1
+  },
+  alertButtonSecondary: {
+    backgroundColor: 'transparent',
+    borderColor: '#04D9E7'
+  },
+  alertButtonText: {
+    color: '#013743',
+    fontSize: width * 0.04,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
+  alertButtonTextSecondary: {
+    color: '#04D9E7'
+  }
 });
 
 export default OurOffers;

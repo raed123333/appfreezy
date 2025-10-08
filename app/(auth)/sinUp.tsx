@@ -2,10 +2,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { Link, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Dimensions,
   Image,
   ImageBackground,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -31,6 +31,33 @@ const sinUp = () => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { register, registerGoogle } = useAuth();
+  const [showCustomAlert, setShowCustomAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({ 
+    title: '', 
+    message: '', 
+    onConfirm: null as (() => void) | null 
+  });
+
+  // Function to show custom alert
+  const showCustomAlertMessage = (title: string, message: string, onConfirm?: () => void) => {
+    setAlertConfig({
+      title,
+      message,
+      onConfirm: onConfirm || null
+    });
+    setShowCustomAlert(true);
+  };
+
+  const handleCustomAlertClose = () => {
+    setShowCustomAlert(false);
+  };
+
+  const handleCustomAlertConfirm = () => {
+    if (alertConfig.onConfirm) {
+      alertConfig.onConfirm();
+    }
+    setShowCustomAlert(false);
+  };
 
   const pickImage = async () => {
     try {
@@ -50,23 +77,23 @@ const sinUp = () => {
       }
     } catch (err) {
       console.error("Error picking image:", err);
-      Alert.alert("Erreur", "Impossible de sélectionner l'image");
+      showCustomAlertMessage("Erreur", "Impossible de sélectionner l'image");
     }
   };
 
   const handleRegister = async () => {
     if (!nom || !prenom || !email || !nomEntreprise || !adresse || !telephone || !motpasse || !confirmMotpasse) {
-      Alert.alert("Erreur", "Veuillez remplir tous les champs");
+      showCustomAlertMessage("Erreur", "Veuillez remplir tous les champs");
       return;
     }
 
     if (motpasse !== confirmMotpasse) {
-      Alert.alert("Erreur", "Les mots de passe ne correspondent pas");
+      showCustomAlertMessage("Erreur", "Les mots de passe ne correspondent pas");
       return;
     }
 
     if (motpasse.length < 6) {
-      Alert.alert("Erreur", "Le mot de passe doit contenir au moins 6 caractères");
+      showCustomAlertMessage("Erreur", "Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
 
@@ -83,12 +110,11 @@ const sinUp = () => {
         image,
       });
 
-      Alert.alert("Succès", "Compte créé avec succès", [
-        {
-          text: "OK",
-          onPress: () => router.push("../(freezycorp)/Home"),
-        },
-      ]);
+      showCustomAlertMessage(
+        "Succès", 
+        "Compte créé avec succès", 
+        () => router.push("../(freezycorp)/Home")
+      );
     } catch (error) {
       // Error handling is done in the AuthContext
     } finally {
@@ -98,6 +124,35 @@ const sinUp = () => {
 
   return (
     <ScrollView>
+      {/* Custom Alert Modal */}
+      <Modal
+        visible={showCustomAlert}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCustomAlertClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.customAlert}>
+            <View style={styles.alertHeader}>
+              <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+            </View>
+            <View style={styles.alertBody}>
+              <Text style={styles.alertMessage}>
+                {alertConfig.message}
+              </Text>
+            </View>
+            <View style={styles.alertFooter}>
+              <TouchableOpacity 
+                style={styles.alertButton}
+                onPress={alertConfig.onConfirm ? handleCustomAlertConfirm : handleCustomAlertClose}
+              >
+                <Text style={styles.alertButtonText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.container}>
         <View style={styles.blueOverlay} />
         <ImageBackground
@@ -145,7 +200,7 @@ const sinUp = () => {
         />
         <TextInput
           style={styles.input}
-          placeholder="Nom de l’entreprise"
+          placeholder="Nom de l'entreprise"
           placeholderTextColor="#B0B3C1"
           value={nomEntreprise}
           onChangeText={setNomEntreprise}
@@ -208,7 +263,7 @@ const sinUp = () => {
           </Link>
         </View>
       </View>
-      <GoogleButton onPress={registerGoogle} />
+      <GoogleButton onPress={registerGoogle} /> 
     </ScrollView>
   );
 };
@@ -333,6 +388,73 @@ const styles = StyleSheet.create({
     color: '#B0B3C1',
     fontSize: width * 0.04,
   },
+  // Custom Alert Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  customAlert: {
+    width: width * 0.85,
+    backgroundColor: '#013743',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10
+  },
+  alertHeader: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertTitle: {
+    fontSize: width * 0.06,
+    fontWeight: 'bold',
+    color: '#013743',
+    textAlign: 'center'
+  },
+  alertBody: {
+    padding: 25,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertMessage: {
+    fontSize: width * 0.045,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontWeight: '500'
+  },
+  alertFooter: {
+    padding: 20,
+    paddingTop: 10,
+    alignItems: 'center'
+  },
+  alertButton: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    minWidth: 120
+  },
+  alertButtonText: {
+    color: '#013743',
+    fontSize: width * 0.045,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  }
 });
 
 export default sinUp;

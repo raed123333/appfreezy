@@ -1,8 +1,8 @@
+import { API } from "@/config";
 import { Link } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, Dimensions, Image, ImageBackground, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Dimensions, Image, ImageBackground, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useAuth } from "./../context/AuthContext";
-import { API } from "@/config";
 
 const { width, height } = Dimensions.get("window");
 
@@ -13,15 +13,45 @@ const AddComment = () => {
   const [userComments, setUserComments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCustomAlert, setShowCustomAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({ 
+    title: '', 
+    message: '', 
+    type: '', 
+    onConfirm: null as (() => void) | null,
+    showCancel: false 
+  });
+
+  // Function to show custom alert
+  const showCustomAlertMessage = (title: string, message: string, type: string = 'info', onConfirm?: () => void, showCancel: boolean = false) => {
+    setAlertConfig({
+      title,
+      message,
+      type,
+      onConfirm: onConfirm || null,
+      showCancel
+    });
+    setShowCustomAlert(true);
+  };
+
+  const handleCustomAlertClose = () => {
+    setShowCustomAlert(false);
+  };
+
+  const handleCustomAlertConfirm = () => {
+    if (alertConfig.onConfirm) {
+      alertConfig.onConfirm();
+    }
+    setShowCustomAlert(false);
+  };
 
   const handleLogout = () => {
-    Alert.alert(
+    showCustomAlertMessage(
       "Déconnexion",
       "Êtes-vous sûr de vouloir vous déconnecter ?",
-      [
-        { text: "Annuler", style: "cancel" },
-        { text: "Se déconnecter", onPress: () => logout(), style: "destructive" }
-      ]
+      'warning',
+      () => logout(),
+      true
     );
   };
 
@@ -102,7 +132,7 @@ const AddComment = () => {
 
   const handleSubmitComment = async () => {
     if (!comment.trim()) {
-      Alert.alert("Erreur", "Veuillez écrire un commentaire");
+      showCustomAlertMessage("Erreur", "Veuillez écrire un commentaire");
       return;
     }
 
@@ -129,16 +159,16 @@ const AddComment = () => {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert("Succès", "Votre commentaire a été envoyé avec succès!");
+        showCustomAlertMessage("Succès", "Votre commentaire a été envoyé avec succès! ✅");
         setComment("");
         // Refresh the comments list
         fetchUserComments();
       } else {
-        Alert.alert("Erreur", data.error || "Une erreur s'est produite");
+        showCustomAlertMessage("Erreur", data.error || "Une erreur s'est produite");
       }
     } catch (error) {
       console.error("Erreur lors de l'envoi du commentaire:", error);
-      Alert.alert("Erreur", "Impossible d'envoyer le commentaire. Vérifiez votre connexion.");
+      showCustomAlertMessage("Erreur", "Impossible d'envoyer le commentaire. Vérifiez votre connexion.");
     } finally {
       setIsSubmitting(false);
     }
@@ -146,41 +176,33 @@ const AddComment = () => {
 
   // Delete comment function
   const handleDeleteComment = async (commentId) => {
-    Alert.alert(
+    showCustomAlertMessage(
       "Supprimer le commentaire",
       "Êtes-vous sûr de vouloir supprimer ce commentaire ?",
-      [
-        {
-          text: "Annuler",
-          style: "cancel"
-        },
-        {
-          text: "Supprimer",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const response = await fetch(`${API}/comment/${commentId}`, {
-                method: "DELETE",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${user?.token}`,
-                },
-              });
+      'warning',
+      async () => {
+        try {
+          const response = await fetch(`${API}/comment/${commentId}`, {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${user?.token}`,
+            },
+          });
 
-              if (response.ok) {
-                Alert.alert("Succès", "Commentaire supprimé avec succès!");
-                // Refresh the comments list
-                fetchUserComments();
-              } else {
-                Alert.alert("Erreur", "Impossible de supprimer le commentaire");
-              }
-            } catch (error) {
-              console.error("Erreur lors de la suppression du commentaire:", error);
-              Alert.alert("Erreur", "Impossible de supprimer le commentaire. Vérifiez votre connexion.");
-            }
+          if (response.ok) {
+            showCustomAlertMessage("Succès", "Commentaire supprimé avec succès! ✅");
+            // Refresh the comments list
+            fetchUserComments();
+          } else {
+            showCustomAlertMessage("Erreur", "Impossible de supprimer le commentaire");
           }
+        } catch (error) {
+          console.error("Erreur lors de la suppression du commentaire:", error);
+          showCustomAlertMessage("Erreur", "Impossible de supprimer le commentaire. Vérifiez votre connexion.");
         }
-      ]
+      },
+      true
     );
   };
 
@@ -201,6 +223,54 @@ const AddComment = () => {
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Custom Alert Modal */}
+      <Modal
+        visible={showCustomAlert}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCustomAlertClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.customAlert}>
+            <View style={styles.alertHeader}>
+              <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+            </View>
+            <View style={styles.alertBody}>
+              <Text style={styles.alertMessage}>
+                {alertConfig.message}
+              </Text>
+            </View>
+            <View style={styles.alertFooter}>
+              {alertConfig.showCancel ? (
+                <>
+                  <TouchableOpacity 
+                    style={[styles.alertButton, styles.alertButtonSecondary]}
+                    onPress={handleCustomAlertClose}
+                  >
+                    <Text style={[styles.alertButtonText, styles.alertButtonSecondaryText]}>Annuler</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.alertButton, alertConfig.type === 'warning' && styles.alertButtonWarning]}
+                    onPress={handleCustomAlertConfirm}
+                  >
+                    <Text style={styles.alertButtonText}>
+                      {alertConfig.type === 'warning' ? 'Confirmer' : 'OK'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.alertButton}
+                  onPress={handleCustomAlertClose}
+                >
+                  <Text style={styles.alertButtonText}>OK</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Fixed top container */}
       <View style={styles.container}>
         <View style={styles.blueOverlay} />
@@ -498,6 +568,88 @@ const styles = StyleSheet.create({
     fontSize: width * 0.04,
     marginVertical: 20,
   },
+  // Custom Alert Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  customAlert: {
+    width: width * 0.85,
+    backgroundColor: '#013743',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10
+  },
+  alertHeader: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertTitle: {
+    fontSize: width * 0.06,
+    fontWeight: 'bold',
+    color: '#013743',
+    textAlign: 'center'
+  },
+  alertBody: {
+    padding: 25,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  alertMessage: {
+    fontSize: width * 0.045,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontWeight: '500'
+  },
+  alertFooter: {
+    padding: 20,
+    paddingTop: 10,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10
+  },
+  alertButton: {
+    backgroundColor: '#04D9E7',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    minWidth: 100,
+    flex: 1
+  },
+  alertButtonSecondary: {
+    backgroundColor: 'transparent',
+    borderColor: '#04D9E7'
+  },
+  alertButtonWarning: {
+    backgroundColor: '#FF6B6B',
+    borderColor: '#FF6B6B'
+  },
+  alertButtonText: {
+    color: '#013743',
+    fontSize: width * 0.04,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
+  alertButtonSecondaryText: {
+    color: '#04D9E7'
+  }
 });
 
 export default AddComment;

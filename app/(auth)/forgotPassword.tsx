@@ -1,9 +1,9 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
     Dimensions,
     KeyboardAvoidingView,
+    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -26,10 +26,37 @@ const ForgotPassword = () => {
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
     const { forgotPassword , verifyResetCode , resetPasswordWithCode } = useAuth();
+    const [showCustomAlert, setShowCustomAlert] = useState(false);
+    const [alertConfig, setAlertConfig] = useState({ 
+        title: '', 
+        message: '', 
+        onConfirm: null as (() => void) | null 
+    });
+
+    // Function to show custom alert
+    const showCustomAlertMessage = (title: string, message: string, onConfirm?: () => void) => {
+        setAlertConfig({
+            title,
+            message,
+            onConfirm: onConfirm || null
+        });
+        setShowCustomAlert(true);
+    };
+
+    const handleCustomAlertClose = () => {
+        setShowCustomAlert(false);
+    };
+
+    const handleCustomAlertConfirm = () => {
+        if (alertConfig.onConfirm) {
+            alertConfig.onConfirm();
+        }
+        setShowCustomAlert(false);
+    };
 
     const handleSendCode = async () => {
         if (!email) {
-            Alert.alert('Erreur', 'Veuillez entrer votre adresse email');
+            showCustomAlertMessage('Erreur', 'Veuillez entrer votre adresse email');
             return;
         }
 
@@ -38,21 +65,21 @@ const ForgotPassword = () => {
             // This would call your backend to send the 6-digit code
             await forgotPassword(email);
             setStep(2);
-            Alert.alert('Succès', 'Code de vérification envoyé! Vérifiez votre email.');
-        } catch (error) {
-            Alert.alert('Erreur', error.error || 'Échec de l\'envoi du code');
+            showCustomAlertMessage('Succès', 'Code de vérification envoyé! Vérifiez votre email.');
+        } catch (error: any) {
+            showCustomAlertMessage('Erreur', error.error || 'Échec de l\'envoi du code');
         } finally {
             setIsLoading(false);
         }
     };
  const handleVerifyCode = async () => {
         if (!code) {
-            Alert.alert('Erreur', 'Veuillez entrer le code de vérification');
+            showCustomAlertMessage('Erreur', 'Veuillez entrer le code de vérification');
             return;
         }
 
         if (code.length !== 6) {
-            Alert.alert('Erreur', 'Le code doit contenir 6 chiffres');
+            showCustomAlertMessage('Erreur', 'Le code doit contenir 6 chiffres');
             return;
         }
 
@@ -60,9 +87,9 @@ const ForgotPassword = () => {
         try {
             await verifyResetCode(email, code); // FIXED: Call the actual function
             setStep(3);
-        } catch (error) {
+        } catch (error: any) {
             console.log(error);
-            Alert.alert('Erreur', error.error || 'Code invalide ou expiré');
+            showCustomAlertMessage('Erreur', error.error || 'Code invalide ou expiré');
         } finally {
             setIsLoading(false);
         }
@@ -70,17 +97,17 @@ const ForgotPassword = () => {
     
     const handleResetPassword = async () => { // CHANGED to async
         if (!newPassword || !confirmPassword) {
-            Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+            showCustomAlertMessage('Erreur', 'Veuillez remplir tous les champs');
             return;
         }
 
         if (newPassword !== confirmPassword) {
-            Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
+            showCustomAlertMessage('Erreur', 'Les mots de passe ne correspondent pas');
             return;
         }
 
         if (newPassword.length < 6) {
-            Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 6 caractères');
+            showCustomAlertMessage('Erreur', 'Le mot de passe doit contenir au moins 6 caractères');
             return;
         }
 
@@ -88,14 +115,14 @@ const ForgotPassword = () => {
         console.log(email,code,newPassword);
         try {
             await resetPasswordWithCode(email, code, newPassword); // CALL THE ACTUAL FUNCTION
-            Alert.alert(
+            showCustomAlertMessage(
                 'Succès',
                 'Mot de passe réinitialisé avec succès!',
-                [{ text: 'OK', onPress: () => router.back() }]
+                () => router.back()
             );
-        } catch (error) {
+        } catch (error: any) {
             console.log(error);
-            Alert.alert('Erreur', error.error || 'Échec de la réinitialisation du mot de passe');
+            showCustomAlertMessage('Erreur', error.error || 'Échec de la réinitialisation du mot de passe');
         } finally {
             setIsLoading(false);
         }
@@ -223,6 +250,35 @@ const ForgotPassword = () => {
 
     return (
         <ScrollView style={styles.container}>
+            {/* Custom Alert Modal */}
+            <Modal
+                visible={showCustomAlert}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={handleCustomAlertClose}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.customAlert}>
+                        <View style={styles.alertHeader}>
+                            <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+                        </View>
+                        <View style={styles.alertBody}>
+                            <Text style={styles.alertMessage}>
+                                {alertConfig.message}
+                            </Text>
+                        </View>
+                        <View style={styles.alertFooter}>
+                            <TouchableOpacity 
+                                style={styles.alertButton}
+                                onPress={alertConfig.onConfirm ? handleCustomAlertConfirm : handleCustomAlertClose}
+                            >
+                                <Text style={styles.alertButtonText}>OK</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
             <KeyboardAvoidingView 
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardAvoid}
@@ -358,6 +414,73 @@ const styles = StyleSheet.create({
         fontSize: width * 0.04,
         fontWeight: 'bold',
     },
+    // Custom Alert Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20
+    },
+    customAlert: {
+        width: width * 0.85,
+        backgroundColor: '#013743',
+        borderRadius: 16,
+        overflow: 'hidden',
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 4
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 10
+    },
+    alertHeader: {
+        backgroundColor: '#04D9E7',
+        paddingVertical: 20,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    alertTitle: {
+        fontSize: width * 0.06,
+        fontWeight: 'bold',
+        color: '#013743',
+        textAlign: 'center'
+    },
+    alertBody: {
+        padding: 25,
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    alertMessage: {
+        fontSize: width * 0.045,
+        color: '#FFFFFF',
+        textAlign: 'center',
+        lineHeight: 24,
+        fontWeight: '500'
+    },
+    alertFooter: {
+        padding: 20,
+        paddingTop: 10,
+        alignItems: 'center'
+    },
+    alertButton: {
+        backgroundColor: '#04D9E7',
+        paddingVertical: 12,
+        paddingHorizontal: 40,
+        borderRadius: 25,
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+        minWidth: 120
+    },
+    alertButtonText: {
+        color: '#013743',
+        fontSize: width * 0.045,
+        fontWeight: 'bold',
+        textAlign: 'center'
+    }
 });
 
 export default ForgotPassword;
