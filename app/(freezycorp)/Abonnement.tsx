@@ -406,12 +406,12 @@ const styles = StyleSheet.create({
   },
   blueOverlay: { 
     ...StyleSheet.absoluteFillObject, 
-    backgroundColor: "#013743" 
+    backgroundColor: "#080808" 
   },
   title: { 
     fontSize: width * 0.06, 
     fontWeight: "bold", 
-    color: "#013743", 
+    color: "#080808", 
     textAlign: "center" 
   },
   inputContainer: { 
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   },
   firstcard: {
     width: width * 0.9,
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
     borderRadius: 12,
     padding: 20,
     alignItems: "center",
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   },
   money: { 
     fontSize: width * 0.04, 
-    color: "#013743", 
+    color: "#080808", 
     marginTop: 1, 
     marginLeft: 20 
   },
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#013743'
+    color: '#080808'
   },
   noHistoryText: {
     fontSize: width * 0.04,
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   },
   customAlert: {
     width: width * 0.85,
-    backgroundColor: '#013743',
+    backgroundColor: '#080808',
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: "#000",
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
   alertTitle: {
     fontSize: width * 0.06,
     fontWeight: 'bold',
-    color: '#013743',
+    color: '#080808',
     textAlign: 'center'
   },
   alertBody: {
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
     minWidth: 120
   },
   alertButtonText: {
-    color: '#013743',
+    color: '#080808',
     fontSize: width * 0.045,
     fontWeight: 'bold',
     textAlign: 'center'

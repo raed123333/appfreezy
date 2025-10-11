@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, Image, Modal, Platform, Text, TouchableOpacity, View, Dimensions } from "react-native";
+import { Dimensions, Image, Modal, Platform, Text, TouchableOpacity, View } from "react-native";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from '../context/AuthContext';
 
@@ -40,7 +40,7 @@ function CustomTabIcon({ icon, label, color, focused, isIonicon = false }:
         paddingHorizontal: focused ? 12 : 0,
         paddingVertical: focused ? 6 : 0,
         borderRadius: focused ? 20 : 0,
-        backgroundColor: focused ? "#013743" : "transparent",
+        backgroundColor: focused ? "#080808" : "transparent",
       }}
     >
       {isIonicon ? (
@@ -199,7 +199,7 @@ export default function FreezyCorpLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: "#013743",
+          tabBarActiveTintColor: "#080808",
           tabBarInactiveTintColor: "#B0B3C1",
           tabBarStyle: {
             backgroundColor: "#FFFFFF",
@@ -312,7 +312,7 @@ const styles = {
   },
   customAlert: {
     width: width * 0.85,
-    backgroundColor: '#013743',
+    backgroundColor: '#080808',
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: "#000",
@@ -334,7 +334,7 @@ const styles = {
   alertTitle: {
     fontSize: width * 0.06,
     fontWeight: 'bold',
-    color: '#013743',
+    color: '#080808',
     textAlign: 'center'
   },
   alertBody: {
@@ -372,7 +372,7 @@ const styles = {
     borderColor: '#04D9E7'
   },
   alertButtonText: {
-    color: '#013743',
+    color: '#080808',
     fontSize: width * 0.04,
     fontWeight: 'bold',
     textAlign: 'center'

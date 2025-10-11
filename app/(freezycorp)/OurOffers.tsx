@@ -662,7 +662,7 @@ const OurOffersComponent = () => {
           {loading ? (
             <Text style={{ color: "#fff", marginTop: 20 }}>Chargement...</Text>
           ) : filteredOffres.length === 0 ? (
-            <Text style={{ color: "#013743", marginTop: 20, textAlign: "center" }}>
+            <Text style={{ color: "#080808", marginTop: 20, textAlign: "center" }}>
               Aucune offre {getPeriodDisplayText()} disponible pour le moment.
             </Text>
           ) : (
@@ -704,12 +704,12 @@ const styles = StyleSheet.create({
   },
   blueOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#013743"
+    backgroundColor: "#080808"
   },
   title: {
     fontSize: width * 0.06,
     fontWeight: "bold",
-    color: "#013743",
+    color: "#080808",
     textAlign: "center"
   },
   sectionText: {
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
   },
   firstcard: {
     width: width * 0.9,
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
     borderRadius: 12,
     padding: 20,
     alignItems: "center",
@@ -851,7 +851,7 @@ const styles = StyleSheet.create({
   secondecardTitle: {
     fontSize: width * 0.05,
     fontWeight: "bold",
-    color: "#013743",
+    color: "#080808",
     marginBottom: 10,
     textAlign: "center"
   },
@@ -875,7 +875,7 @@ const styles = StyleSheet.create({
   },
   secondecardButton: {
     width: width * 0.8,
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
     paddingVertical: 12,
     paddingHorizontal: 25,
     borderRadius: 8,
@@ -896,7 +896,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonActive: {
-    backgroundColor: '#013743',
+    backgroundColor: '#080808',
   },
   toggleButtonInactive: {
     backgroundColor: 'transparent',
@@ -909,7 +909,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   toggleButtonTextInactive: {
-    color: '#013743',
+    color: '#080808',
   },
   interventionsContainer: {
     width: '100%',
@@ -954,7 +954,7 @@ const styles = StyleSheet.create({
   },
   customAlert: {
     width: width * 0.85,
-    backgroundColor: '#013743',
+    backgroundColor: '#080808',
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: "#000",
@@ -976,7 +976,7 @@ const styles = StyleSheet.create({
   alertTitle: {
     fontSize: width * 0.06,
     fontWeight: 'bold',
-    color: '#013743',
+    color: '#080808',
     textAlign: 'center'
   },
   alertBody: {
@@ -1014,7 +1014,7 @@ const styles = StyleSheet.create({
     borderColor: '#04D9E7'
   },
   alertButtonText: {
-    color: '#013743',
+    color: '#080808',
     fontSize: width * 0.04,
     fontWeight: 'bold',
     textAlign: 'center'

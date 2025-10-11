@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import GoogleButton from "../components/GoogleButton";
+//import GoogleButton from "../components/GoogleButton";
 import { useAuth } from "./../context/AuthContext";
 
 const { width, height } = Dimensions.get("window");
@@ -190,7 +190,7 @@ const LogIn = () => {
         </View>
     
       </View>
-       <GoogleButton onPress={registerGoogle} /> 
+       {/*<GoogleButton onPress={registerGoogle} />*/} 
       
     </ScrollView>
   );
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   },
   blueOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
   },
   logo: {
     marginTop: height * 0.0001,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   },
   customAlert: {
     width: width * 0.85,
-    backgroundColor: '#013743',
+    backgroundColor: '#080808',
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: "#000",
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   alertTitle: {
     fontSize: width * 0.06,
     fontWeight: 'bold',
-    color: '#013743',
+    color: '#080808',
     textAlign: 'center'
   },
   alertBody: {
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     minWidth: 120
   },
   alertButtonText: {
-    color: '#013743',
+    color: '#080808',
     fontSize: width * 0.045,
     fontWeight: 'bold',
     textAlign: 'center'

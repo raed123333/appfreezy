@@ -89,7 +89,7 @@ const NosOffres: React.FC = () => {
 
   return (
     <View style={styles.secondeContainer}>
-      <Text style={{ color: "#013743", fontSize: 28, fontWeight: "bold" }}>
+      <Text style={{ color: "#080808", fontSize: 28, fontWeight: "bold" }}>
         Nos Offres
       </Text>
 
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 8,
-    color: "#013743",
+    color: "#080808",
     textAlign: "center",
   },
   cardText: {
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   firstcard: {
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
     borderRadius: 12,
     padding: 16,
     marginRight: 16,
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   firstcardButtonText: {
-    color: "#013743",
+    color: "#080808",
     fontWeight: "bold",
   },
   priceRow: {

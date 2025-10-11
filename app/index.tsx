@@ -59,13 +59,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   skipVideoButton: {
-    backgroundColor: "#04D9E7",
+    backgroundColor: "#080808",
     paddingVertical: 12,
     paddingHorizontal: 40,
     borderRadius: 8,
   },
   skipVideoText: {
-    color: "#013743",
+    color: "#ffff",
     fontSize: 16,
     fontWeight: "bold",
   },

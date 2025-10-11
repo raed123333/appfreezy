@@ -67,7 +67,7 @@ const Home: React.FC = () => {
 
         {/* Section A propos */}
         <View style={styles.secondeContainer}>
-          <Text style={{ color: "#013743", fontSize: 24, fontWeight: "bold" }}>
+          <Text style={{ color: "#080808", fontSize: 24, fontWeight: "bold" }}>
             A propos 
           </Text>
           <Text style={{ color: "#04D9E7", fontSize: 24, fontWeight: "bold" }}>
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
   },
   NavBarbackground: {
     justifyContent: "flex-start",
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     paddingHorizontal: 20,
   },
-  container: { flex: 1, backgroundColor: "#013743" },
+  container: { flex: 1, backgroundColor: "#080808" },
   background: {
     flex: 1,
     justifyContent: "flex-start",
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   },
   blueOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
   },
   headerRow: {
     flexDirection: "row",

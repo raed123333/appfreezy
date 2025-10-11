@@ -415,12 +415,12 @@ const styles = StyleSheet.create({
   },
   blueOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
   },
   title: {
     fontSize: width * 0.06,
     fontWeight: "bold",
-    color: "#013743",
+    color: "#080808",
     textAlign: "center",
   },
   sectionText: {
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
   commentTitle: {
     fontSize: width * 0.05,
     fontWeight: "bold",
-    color: "#013743",
+    color: "#080808",
     marginBottom: 15,
     textAlign: "center",
   },
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     width: "100%",
     padding: 15,
     fontSize: width * 0.04,
-    color: "#013743",
+    color: "#080808",
     minHeight: 150,
   },
   userInfo: {
@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
   commentsTitle: {
     fontSize: width * 0.05,
     fontWeight: "bold",
-    color: "#013743",
+    color: "#080808",
     marginBottom: 15,
     textAlign: "center",
   },
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   },
   commentText: {
     fontSize: width * 0.04,
-    color: "#013743",
+    color: "#080808",
     marginBottom: 8,
   },
   commentDate: {
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
   },
   customAlert: {
     width: width * 0.85,
-    backgroundColor: '#013743',
+    backgroundColor: '#080808',
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: "#000",
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   alertTitle: {
     fontSize: width * 0.06,
     fontWeight: 'bold',
-    color: '#013743',
+    color: '#080808',
     textAlign: 'center'
   },
   alertBody: {
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
     borderColor: '#FF6B6B'
   },
   alertButtonText: {
-    color: '#013743',
+    color: '#080808',
     fontSize: width * 0.04,
     fontWeight: 'bold',
     textAlign: 'center'

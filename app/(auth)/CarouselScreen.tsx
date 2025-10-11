@@ -16,15 +16,15 @@ const { width, height } = Dimensions.get("window");
 const data = [
   {
     title: "Bienvenue sur FreezyCorp ",
-    description: "Votre partenaire premium en climatisation, maintenance et solutions techniques.Simplifiez la gestion de vos projets et gagnez en sérénité, dès aujourd’hui.",
+    description: "",
   },
   {
-    title: "Bienvenue sur FreezyCorp",
-    description: "Votre partenaire premium en climatisation, maintenance et solutions techniques.Simplifiez la gestion de vos projets et gagnez en sérénité, dès aujourd’hui.",
+    title: "",
+    description: " Votre partenaire premium en climatisation, maintenance et solutions techniques.",
   },
   {
-    title: "Bienvenue sur FreezyCorp",
-    description: "Votre partenaire premium en climatisation, maintenance et solutions techniques.Simplifiez la gestion de vos projets et gagnez en sérénité, dès aujourd’hui.",
+    title: "",
+    description: "Simplifiez la gestion de vos projets et gagnez en sérénité, dès aujourd’hui.",
   },
   
 ];
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: "#8D8D8D", fontSize: width * 0.04, fontWeight: "bold" },
   secondeButton: {
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
     padding: 10,
     borderRadius: 8,
     width: width * 0.3,

@@ -141,7 +141,7 @@ const CeQueDisentClients: React.FC = () => {
 
 const styles = StyleSheet.create({
   thirdContainer: {
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
     padding: 20,
     marginTop: 30,
     paddingBottom: 40,
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   },
   clientText: {
     fontSize: 14,
-    color: "#013743",
+    color: "#080808",
     textAlign: "left",
     marginBottom: 30,
   },

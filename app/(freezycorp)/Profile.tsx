@@ -1,6 +1,6 @@
 import { API } from '@/config';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from "expo-router";
+import { Link } from "expo-router";
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from "react";
 import {
@@ -241,18 +241,20 @@ const Profile = () => {
           resizeMode="cover"
         >
           <View style={styles.buttonRow}>
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={handleLogout}>
               <Image
                 source={require("../../assets/images/iconBack.png")}              
                 style={styles.icon}
               />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleLogout}>
+            <Link href="./Menu" asChild>
+            <TouchableOpacity >
               <Image
                 source={require("../../assets/images/iconHome.png")}
                 style={styles.icon}
-              />
+                />
             </TouchableOpacity>
+            </Link>
           </View>
         </ImageBackground>
       </View>
@@ -371,12 +373,12 @@ const styles = StyleSheet.create({
   },
   blueOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
   },
   title: {
     fontSize: width * 0.06,
     fontWeight: "bold",
-    color: "#013743",
+    color: "#080808",
     textAlign: "center",
   },
   sectionText: {
@@ -487,7 +489,7 @@ const styles = StyleSheet.create({
   },
   customAlert: {
     width: width * 0.85,
-    backgroundColor: '#013743',
+    backgroundColor: '#080808',
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: "#000",
@@ -509,7 +511,7 @@ const styles = StyleSheet.create({
   alertTitle: {
     fontSize: width * 0.06,
     fontWeight: 'bold',
-    color: '#013743',
+    color: '#080808',
     textAlign: 'center'
   },
   alertBody: {
@@ -547,7 +549,7 @@ const styles = StyleSheet.create({
     borderColor: '#04D9E7'
   },
   alertButtonText: {
-    color: '#013743',
+    color: '#080808',
     fontSize: width * 0.04,
     fontWeight: 'bold',
     textAlign: 'center'
