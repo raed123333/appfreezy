@@ -224,12 +224,18 @@ const Abonnement = () => {
   };
 
   const handleLogout = async (): Promise<void> => {
-    try {
-      await logout();
-      router.replace('/');
-    } catch (error) {
-      console.error('Error during logout:', error);
-    }
+    showCustomAlertMessage(
+      "Déconnexion", 
+      "Êtes-vous sûr de vouloir vous déconnecter ?",
+      async () => {
+        try {
+          await logout();
+          // Navigation will be handled by the logout function in AuthContext
+        } catch (error) {
+          console.error('Error during logout:', error);
+        }
+      }
+    );
   };
 
   if (loading) {
@@ -261,11 +267,23 @@ const Abonnement = () => {
               </Text>
             </View>
             <View style={styles.alertFooter}>
+              {alertConfig.onConfirm && (
+                <TouchableOpacity 
+                  style={[styles.alertButton, styles.alertButtonSecondary]}
+                  onPress={handleCustomAlertClose}
+                >
+                  <Text style={[styles.alertButtonText, styles.alertButtonTextSecondary]}>
+                    Annuler
+                  </Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity 
                 style={styles.alertButton}
                 onPress={alertConfig.onConfirm ? handleCustomAlertConfirm : handleCustomAlertClose}
               >
-                <Text style={styles.alertButtonText}>OK</Text>
+                <Text style={styles.alertButtonText}>
+                  {alertConfig.onConfirm ? "Se déconnecter" : "OK"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -281,7 +299,8 @@ const Abonnement = () => {
           resizeMode="cover"
         >
           <View style={styles.specialbuttonRow}>
-            <TouchableOpacity onPress={() => router.back()}>
+            {/* Back button with logout functionality */}
+            <TouchableOpacity onPress={handleLogout}>
               <Image
                 source={require("../../assets/images/iconBack.png")}                          
                 style={styles.icon}
@@ -620,22 +639,33 @@ const styles = StyleSheet.create({
   alertFooter: {
     padding: 20,
     paddingTop: 10,
-    alignItems: 'center'
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10
   },
   alertButton: {
     backgroundColor: '#04D9E7',
     paddingVertical: 12,
-    paddingHorizontal: 40,
+    paddingHorizontal: 20,
     borderRadius: 25,
     borderWidth: 2,
     borderColor: '#FFFFFF',
-    minWidth: 120
+    minWidth: 120,
+    flex: 1
+  },
+  alertButtonSecondary: {
+    backgroundColor: 'transparent',
+    borderColor: '#04D9E7'
   },
   alertButtonText: {
     color: '#080808',
-    fontSize: width * 0.045,
+    fontSize: width * 0.04,
     fontWeight: 'bold',
     textAlign: 'center'
+  },
+  alertButtonTextSecondary: {
+    color: '#04D9E7'
   }
 });
 

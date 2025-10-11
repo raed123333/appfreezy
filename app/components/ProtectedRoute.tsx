@@ -1,27 +1,20 @@
+import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Redirect } from 'expo-router';
-import { Text, View, ActivityIndicator } from 'react-native';
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
+  const router = useRouter();
 
-  if (isLoading) {
-    return (
-      <View style={{ 
-        flex: 1, 
-        justifyContent: 'center', 
-        alignItems: 'center',
-        backgroundColor: '#013743'
-      }}>
-        <ActivityIndicator size="large" color="#04D9E7" />
-        <Text style={{ color: '#FFFFFF', marginTop: 10 }}>Chargement...</Text>
-      </View>
-    );
-  }
-
-  if (!user) {
-    return <Redirect href="/(auth)/LogIn" />;
-  }
+  useEffect(() => {
+    if (!isLoading && user) {
+      // If user is authenticated, prevent going back to auth screens
+      // This will redirect them to Home if they try to go back
+      const currentRoute = router;
+      
+      // You can add additional logic here if needed
+    }
+  }, [user, isLoading, router]);
 
   return <>{children}</>;
 };

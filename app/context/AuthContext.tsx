@@ -11,6 +11,7 @@ interface User {
   email: string;
   nomEntreprise: string;
   token: string;
+  utilisateur?: any;
 }
 
 interface AuthContextType {
@@ -24,6 +25,7 @@ interface AuthContextType {
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   verifyResetCode: (email: string, code: string) => Promise<void>;
   resetPasswordWithCode: (email: string, code: string, newPassword: String) => Promise<void>;
+  getAuthToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,13 +50,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const loadUser = async () => {
     try {
       const userData = await SecureStore.getItemAsync('userData');
-      if (userData) {
-        setUser(JSON.parse(userData));
+      const authToken = await SecureStore.getItemAsync('authToken');
+      
+      if (userData && authToken) {
+        const parsedUserData = JSON.parse(userData);
+        // Ensure the user object has the token
+        const userWithToken = {
+          ...parsedUserData,
+          token: authToken
+        };
+        setUser(userWithToken);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper function to get auth token
+  const getAuthToken = async (): Promise<string | null> => {
+    try {
+      return await SecureStore.getItemAsync('authToken');
+    } catch (error) {
+      console.error('Error getting auth token:', error);
+      return null;
     }
   };
 
@@ -68,7 +88,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (response.ok) {
         const data = await response.json();
-        const userData = { ...data, token: data.token };
+        const userData = { 
+          ...data, 
+          token: data.token,
+          id: data.utilisateur?.idU || data.utilisateur?.id 
+        };
 
         await SecureStore.setItemAsync('userData', JSON.stringify(userData));
         await SecureStore.setItemAsync('authToken', data.token);
@@ -101,31 +125,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await login(userData.email, userData.motpasse);
 
     } catch (error) {
-
       Alert.alert("Erreur", error.message || "Impossible de créer le compte");
       throw error;
     }
   };
 
-
-  ////////////////////////////////////////////////- REGISTER GOOGLE  -//////////////////////////////////////////////////////////////////////
-
   const registerGoogle = async (googleData: any) => {
     try {
-      // Extract only what you need from Google’s response
       const { email, givenName, familyName } = googleData;
 
       const userPayload = {
         nom: familyName || "",
         prenom: givenName || "",
         email: email,
-        nomEntreprise: "", // optional, or set default
-        adresse: "",       // optional, or set default
-        telephone: "",     // optional, or set default
-        //      image: photo || null,
+        nomEntreprise: "",
+        adresse: "",
+        telephone: "",
       };
 
-      // Call your backend signup/login endpoint
       const response = await fetch(`${API}/utilisateur/LoginGoogle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -138,13 +155,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
-      const userData = { ...data, token: data.token };
-      console.log(userData.utilisateur, "tessst");
+      const userData = { 
+        ...data, 
+        token: data.token,
+        id: data.utilisateur?.idU || data.utilisateur?.id 
+      };
 
       await SecureStore.setItemAsync("userData", JSON.stringify(userData));
       await SecureStore.setItemAsync("authToken", data.token);
-
-
 
       setUser(userData);
 
@@ -160,21 +178,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
   const logout = async () => {
     try {
       await SecureStore.deleteItemAsync('userData');
       await SecureStore.deleteItemAsync('authToken');
       setUser(null);
+      // Navigate to auth screen after logout
+      router.replace('/');
     } catch (error) {
       console.error('Error during logout:', error);
     }
   };
 
-  // ADDED: Forgot Password Function
   const forgotPassword = async (email: string) => {
     try {
       const response = await fetch(`${API}/utilisateur/forgot-password`, {
@@ -189,16 +204,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
-      console.log(data);
       return data;
     } catch (error) {
       Alert.alert("Erreur", error.message || "Impossible d'envoyer l'email de réinitialisation");
       throw error;
     }
   };
-  //verify code 
+
   const verifyResetCode = async (email: String, code: String) => {
-    console.log(email, code);
     const response = await fetch(`${API}/utilisateur/verifyResetCode`, {
       method: 'POST',
       headers: {
@@ -214,8 +227,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return data;
   };
 
-
-  // ADDED: Reset Password Function
   const resetPassword = async (token: string, newPassword: string) => {
     try {
       const response = await fetch(`${API}/utilisateur/reset-password`, {
@@ -236,7 +247,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw error;
     }
   };
-  //resetPasswordWithCode
+
   const resetPasswordWithCode = async (email: string, code: string, newPassword: string) => {
     try {
       const response = await fetch(`${API}/utilisateur/reset-password`, {
@@ -265,11 +276,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       login,
       logout,
       register,
-      forgotPassword, // ADDED
+      forgotPassword,
       resetPassword,
       verifyResetCode,
       registerGoogle,
-      resetPasswordWithCode // ADDED
+      resetPasswordWithCode,
+      getAuthToken // ADDED
     }}>
       {children}
     </AuthContext.Provider>

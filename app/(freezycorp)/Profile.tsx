@@ -1,6 +1,6 @@
 import { API } from '@/config';
 import * as ImagePicker from 'expo-image-picker';
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from "react";
 import {
@@ -20,7 +20,7 @@ import { useAuth } from "./../context/AuthContext";
 const { width, height } = Dimensions.get("window");
 
 const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, getAuthToken } = useAuth();
   const [nom, setNom] = useState("");
   const [prenom, setPrenom] = useState("");
   const [email, setEmail] = useState("");
@@ -73,6 +73,8 @@ const Profile = () => {
     if (user) {
       // Check different possible user structures
       const userData = user.utilisateur || user.parent || user;
+      
+      console.log("User data loaded:", userData);
       
       setNom(userData.nom || "");
       setPrenom(userData.prenom || "");
@@ -135,6 +137,16 @@ const Profile = () => {
       const userData = user.utilisateur || user.parent || user;
       const userId = userData.idU || userData.idp || userData.id;
 
+      if (!userId) {
+        throw new Error("User ID not found");
+      }
+
+      // Get fresh auth token
+      const authToken = await getAuthToken();
+      if (!authToken) {
+        throw new Error("Authentication token not found");
+      }
+
       const updateData = {
         nom,
         prenom,
@@ -146,11 +158,14 @@ const Profile = () => {
         image
       };
 
+      console.log("Updating profile with data:", updateData);
+      console.log("Using token:", authToken);
+
       const response = await fetch(`${API}/utilisateur/${userId}`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${await SecureStore.getItemAsync('authToken')}`
+          "Authorization": `Bearer ${authToken}`
         },
         body: JSON.stringify(updateData),
       });
@@ -165,28 +180,51 @@ const Profile = () => {
           const parsedData = JSON.parse(currentUserData);
           const updatedData = {
             ...parsedData,
-            ...updatedUser.utilisateur,
-            image: updatedUser.utilisateur.image
+            utilisateur: {
+              ...parsedData.utilisateur,
+              ...updatedUser.utilisateur,
+              image: updatedUser.utilisateur?.image || parsedData.utilisateur?.image
+            }
           };
           await SecureStore.setItemAsync('userData', JSON.stringify(updatedData));
         }
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Échec de la mise à jour");
+        const errorText = await response.text();
+        console.error("Update failed with status:", response.status, "Response:", errorText);
+        
+        let errorMessage = "Échec de la mise à jour";
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
+        }
+        
+        throw new Error(errorMessage);
       }
     } catch (error: any) {
+      console.error("Update profile error:", error);
       showCustomAlertMessage("Erreur", error.message || "Impossible de mettre à jour le profil");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     showCustomAlertMessage(
-      "Déconnexion",
+      "Déconnexion", 
       "Êtes-vous sûr de vouloir vous déconnecter ?",
-      () => logout(),
-      () => {} // Cancel action
+      async () => {
+        try {
+          await logout();
+          // Navigation will be handled by the logout function in AuthContext
+        } catch (error) {
+          console.error('Error during logout:', error);
+        }
+      },
+      () => {
+        // Cancel action - do nothing
+      }
     );
   };
 
