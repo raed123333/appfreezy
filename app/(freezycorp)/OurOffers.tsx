@@ -425,6 +425,9 @@ const OurOffersComponent = () => {
     const canPurchase = canPurchaseNewOffer();
     const subscriptionMessage = getSubscriptionStatusMessage();
 
+    // Check if this is the active subscription offer
+    const isActiveSubscription = activeSubscription && activeSubscription.offreId === offre.idOffre;
+
     return (
       <Pressable
         key={index}
@@ -432,16 +435,18 @@ const OurOffersComponent = () => {
         onPressOut={handlePressOut}
         style={[
           isHovered ? styles.firstcard : styles.secondecard,
-          !canPurchase && styles.disabledCard
         ]}
       >
-        {!canPurchase && (
-          <View style={styles.overlayDisabled}>
-            <Text style={styles.disabledText}>Abonnement actif</Text>
+        {/* Only show "Abonnement actif" tag on the active subscription offer */}
+        {isActiveSubscription && (
+          <View style={styles.overlayActive}>
+            <Text style={styles.activeText}>Abonnement actif</Text>
           </View>
         )}
 
-        <Text style={isHovered ? styles.firstcardTitle : styles.secondecardTitle}>{offre.titre}</Text>
+        <Text style={isHovered ? styles.firstcardTitle : styles.secondecardTitle}>
+          {offre.titre}
+        </Text>
 
         <Text style={isHovered ? styles.firstcardParagraph : styles.secondecardParagraph}>
           {offre.description || "Idéale pour une flexibilité maximale, sans engagement à long terme."}
@@ -485,13 +490,14 @@ const OurOffersComponent = () => {
         <TouchableOpacity
           style={[
             isHovered ? styles.firstcardButton : styles.secondecardButton,
-            !canPurchase && styles.disabledButton
+            (!canPurchase || isActiveSubscription) && styles.disabledButton
           ]}
           onPress={() => handlePayment(offre.prix, offre.idOffre, offre.titre, offre.duree)}
-          disabled={!canPurchase}
+          disabled={!canPurchase || isActiveSubscription}
         >
           <Text style={styles.cardButtonText}>
-            {canPurchase ? "Profitez maintenant" : "Abonnement actif"}
+            {isActiveSubscription ? "Abonnement actif" : 
+             canPurchase ? "Profitez maintenant" : "Abonnement actif"}
           </Text>
         </TouchableOpacity>
       </Pressable>
@@ -915,24 +921,6 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 10,
   },
-  disabledCard: {
-    opacity: 0.7,
-  },
-  overlayDisabled: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 15,
-    zIndex: 10,
-  },
-  disabledText: {
-    color: '#FFFFFF',
-    fontSize: width * 0.03,
-    fontWeight: 'bold',
-  },
   disabledButton: {
     backgroundColor: '#A5A5A5',
   },
@@ -943,6 +931,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontWeight: 'bold',
     fontStyle: 'italic',
+  },
+  // Active subscription tag styles
+  overlayActive: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    zIndex: 10,
+  },
+  activeText: {
+    color: '#FFFFFF',
+    fontSize: width * 0.03,
+    fontWeight: 'bold',
   },
   // Custom Alert Styles
   modalOverlay: {

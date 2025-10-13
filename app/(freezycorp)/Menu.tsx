@@ -323,6 +323,7 @@ const styles = StyleSheet.create({
     marginTop: 30,
     width: "80%",
     paddingHorizontal: 5,
+    marginBottom:5,
   },
   uiRectangle: {
     color: "#FFFFFF",
