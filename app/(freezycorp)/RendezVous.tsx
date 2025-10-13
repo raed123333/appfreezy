@@ -25,6 +25,7 @@ const RendezVous = () => {
   const [refreshSubscription, setRefreshSubscription] = useState(0);
   const [showCustomAlert, setShowCustomAlert] = useState(false);
   const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: '', onPress: null as (() => void) | null });
+  const [appointmentToCancel, setAppointmentToCancel] = useState<number | null>(null); // NEW: Track appointment to cancel
 
   // FIXED: Improved user ID extraction with better fallbacks
   const getUserId = () => {
@@ -274,6 +275,23 @@ const RendezVous = () => {
     setRefreshing(false);
   };
 
+  // NEW: Function to refresh all data
+  const refreshAllData = async () => {
+    const userId = getUserId();
+    const token = await getToken();
+    
+    if (userId && token && hasActiveSubscription) {
+      console.log("Auto-refreshing data after appointment cancellation");
+      await fetchUserAppointments(userId);
+      await fetchAllAppointments();
+      await fetchHolidays();
+      await fetchInterventionLimits();
+      if (selectedDate) {
+        await fetchAvailableTimeSlots(selectedDate);
+      }
+    }
+  };
+
   const fetchUserAppointments = async (userId: number) => {
     try {
       const token = await getToken();
@@ -365,6 +383,18 @@ const RendezVous = () => {
       message,
       type: 'info',
       onPress: onPress || null
+    });
+    setShowCustomAlert(true);
+  };
+
+  // NEW: Show confirmation alert for appointment cancellation
+  const showCancelConfirmation = (idAppoin: number) => {
+    setAppointmentToCancel(idAppoin);
+    setAlertConfig({
+      title: '⚠️ Confirmation de suppression',
+      message: 'Êtes-vous sûr de vouloir supprimer ce rendez-vous ? Cette action ne peut pas être annulée.',
+      type: 'warning',
+      onPress: null
     });
     setShowCustomAlert(true);
   };
@@ -469,9 +499,21 @@ const RendezVous = () => {
         fetchInterventionLimits();
       }
     }
+    
+    // Reset appointment to cancel
+    setAppointmentToCancel(null);
   };
 
-  const handleCancelAppointment = async (idAppoin: number) => {
+  // NEW: Handle confirmed cancellation
+  const handleConfirmCancel = async () => {
+    if (appointmentToCancel) {
+      await performCancelAppointment(appointmentToCancel);
+    }
+    setAppointmentToCancel(null);
+    setShowCustomAlert(false);
+  };
+
+  const performCancelAppointment = async (idAppoin: number) => {
     try {
       const token = await getToken();
       if (!token) {
@@ -482,6 +524,9 @@ const RendezVous = () => {
       await axios.delete(`${API}/appointment/${idAppoin}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
+
+      // NEW: Auto-refresh data after successful cancellation
+      await refreshAllData();
 
       setAlertConfig({
         title: 'Succès',
@@ -569,7 +614,7 @@ const RendezVous = () => {
             <Text style={styles.subscriptionButtonText}>Voir les offres</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.subscriptionButton, { backgroundColor: '#013743', marginTop: 10 }]}
+            style={[styles.subscriptionButton, { backgroundColor: '#080808', marginTop: 10 }]}
             onPress={() => {
               setRefreshSubscription(prev => prev + 1);
             }}
@@ -636,6 +681,21 @@ const RendezVous = () => {
                     onPress={handleCustomAlertClose}
                   >
                     <Text style={styles.alertButtonText}>Voir les offres</Text>
+                  </TouchableOpacity>
+                </>
+              ) : alertConfig.title === '⚠️ Confirmation de suppression' ? (
+                <>
+                  <TouchableOpacity 
+                    style={[styles.alertButton, styles.alertButtonSecondary]}
+                    onPress={handleCustomAlertClose}
+                  >
+                    <Text style={[styles.alertButtonText, styles.alertButtonSecondaryText]}>Annuler</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.alertButton, { backgroundColor: '#FF6B6B', borderColor: '#FF6B6B' }]}
+                    onPress={handleConfirmCancel}
+                  >
+                    <Text style={styles.alertButtonText}>Supprimer</Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -715,9 +775,9 @@ const RendezVous = () => {
 
               <View style={styles.secondecard}>
                 <Text style={styles.secondecardTitle}>Mes Rendez-vous</Text>
-                {preBookedDates.filter(item => item.statusAppoi !== "effectué").length > 0 ? (
+                {/* FIXED: Keep appointments with status "effectué" in the list */}
+                {preBookedDates.length > 0 ? (
                   preBookedDates
-                    .filter(item => item.statusAppoi !== "effectué")
                     .map((item, index) => (
                       <View style={styles.appointmentItem} key={item.idAppoin}>
                         <View style={styles.appointmentInfo}>
@@ -727,16 +787,21 @@ const RendezVous = () => {
                             Statut: {item.statusAppoi}
                           </Text>
                         </View>
+                        {/* UPDATED: Show cancel button only for "Non_confirmé" status */}
                         {item.statusAppoi === "Non_confirmé" ? (
                           <TouchableOpacity 
                             style={styles.cancelButton}
-                            onPress={() => handleCancelAppointment(item.idAppoin)}
+                            onPress={() => showCancelConfirmation(item.idAppoin)}
                           >
                             <Text style={styles.cancelText}>Annuler</Text>
                           </TouchableOpacity>
                         ) : item.statusAppoi === "confirmé" ? (
                           <View style={styles.confirmedBadge}>
                             <Text style={styles.confirmedText}>Confirmé</Text>
+                          </View>
+                        ) : item.statusAppoi === "effectué" ? (
+                          <View style={[styles.confirmedBadge, { backgroundColor: "blue" }]}>
+                            <Text style={styles.confirmedText}>Effectué</Text>
                           </View>
                         ) : null}
                       </View>
@@ -755,8 +820,8 @@ const RendezVous = () => {
                   markingType={'custom'}
                   markedDates={getMarkedDates()}
                   theme={{
-                    backgroundColor: '#013743',
-                    calendarBackground: '#013743',
+                    backgroundColor: '#080808',
+                    calendarBackground: '#080808',
                     textSectionTitleColor: '#fff',
                     selectedDayBackgroundColor: '#04D9E7',
                     selectedDayTextColor: '#fff',
@@ -826,7 +891,7 @@ const styles = StyleSheet.create({
   },
   blueOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#013743"
+    backgroundColor: "#080808"
   },
   inputContainer: {
     flex: 1,
@@ -842,7 +907,7 @@ const styles = StyleSheet.create({
   },
   firstcard: {
     width: width * 0.9,
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
     borderRadius: 12,
     padding: 20,
     alignItems: "center",
@@ -934,7 +999,7 @@ const styles = StyleSheet.create({
   titlechiffre: {
     fontSize: width * 0.035,
     fontWeight: "bold",
-    color: "#013743",
+    color: "#080808",
     marginBottom: 4
   },
   historique: {
@@ -1008,7 +1073,7 @@ const styles = StyleSheet.create({
   },
   limitCard: {
     width: width * 0.9,
-    backgroundColor: "#013743",
+    backgroundColor: "#080808",
     borderRadius: 12,
     padding: 15,
     alignItems: "center",
@@ -1064,7 +1129,7 @@ const styles = StyleSheet.create({
   },
   customAlert: {
     width: width * 0.85,
-    backgroundColor: '#013743',
+    backgroundColor: '#080808',
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: "#000",
@@ -1086,7 +1151,7 @@ const styles = StyleSheet.create({
   alertTitle: {
     fontSize: width * 0.06,
     fontWeight: 'bold',
-    color: '#013743',
+    color: '#080808',
     textAlign: 'center'
   },
   alertBody: {
@@ -1124,10 +1189,13 @@ const styles = StyleSheet.create({
     borderColor: '#04D9E7'
   },
   alertButtonText: {
-    color: '#013743',
+    color: '#080808',
     fontSize: width * 0.04,
     fontWeight: 'bold',
     textAlign: 'center'
+  },
+  alertButtonSecondaryText: {
+    color: '#04D9E7'
   }
 });
 
