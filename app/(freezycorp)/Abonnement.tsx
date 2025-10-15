@@ -18,6 +18,7 @@ interface Subscription {
   amount: number;
   createdAt: string;
   updatedAt: string;
+  dateFin: string; // Added this field
 }
 
 // Define the Payment interface
@@ -221,7 +222,7 @@ const Abonnement = () => {
   const getOffreName = (offreId: number | null): string => {
     const offreNames: { [key: number]: string } = {
       1: "Mensuelle",
-      3: "Trimestrielle", 
+      3: "Real offres", // Changed from "Trimestrielle" to "Real offres"
       6: "Semestrielle",
       12: "Annuelle"
     };
@@ -242,19 +243,83 @@ const Abonnement = () => {
     }
   };
 
+  // FIXED FUNCTION: Get the correct next billing date
   const getNextBillingDate = (): string => {
-    if (!activeSubscription || !activeSubscription.nextBillingDate) {
+    if (!activeSubscription) {
       return "Non disponible";
     }
     
     try {
-      const nextDate = new Date(activeSubscription.nextBillingDate);
-      if (isNaN(nextDate.getTime())) return "Date invalide";
+      // Priority 1: Use nextBillingDate from Stripe webhook (most accurate)
+      if (activeSubscription.nextBillingDate) {
+        const nextDate = new Date(activeSubscription.nextBillingDate);
+        if (!isNaN(nextDate.getTime())) {
+          return formatDate(activeSubscription.nextBillingDate);
+        }
+      }
       
-      const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
-      return nextDate.toLocaleDateString('fr-FR', options);
+      // Priority 2: Use dateFin from database (subscription end date)
+      if (activeSubscription.dateFin) {
+        const endDate = new Date(activeSubscription.dateFin);
+        if (!isNaN(endDate.getTime())) {
+          return formatDate(activeSubscription.dateFin);
+        }
+      }
+      
+      // Priority 3: Calculate based on subscription creation and duration
+      const createdAt = new Date(activeSubscription.createdAt);
+      if (!isNaN(createdAt.getTime())) {
+        const offreDuration = activeSubscription.offreId || 1;
+        const nextBilling = new Date(createdAt);
+        nextBilling.setMonth(nextBilling.getMonth() + offreDuration);
+        return formatDate(nextBilling.toISOString());
+      }
+      
+      return "Date non disponible";
+      
     } catch (error) {
+      console.error("Error calculating next billing date:", error);
       return "Date invalide";
+    }
+  };
+
+  // FIXED FUNCTION: Get days until next billing
+  const getDaysUntilNextBilling = (): number => {
+    if (!activeSubscription) return 0;
+    
+    try {
+      let nextBillingDate: Date | null = null;
+      
+      // Try to get date from nextBillingDate field
+      if (activeSubscription.nextBillingDate) {
+        nextBillingDate = new Date(activeSubscription.nextBillingDate);
+      }
+      
+      // If not available, try dateFin
+      if ((!nextBillingDate || isNaN(nextBillingDate.getTime())) && activeSubscription.dateFin) {
+        nextBillingDate = new Date(activeSubscription.dateFin);
+      }
+      
+      // If still not available, calculate from creation date
+      if (!nextBillingDate || isNaN(nextBillingDate.getTime())) {
+        const createdAt = new Date(activeSubscription.createdAt);
+        if (!isNaN(createdAt.getTime())) {
+          const offreDuration = activeSubscription.offreId || 1;
+          nextBillingDate = new Date(createdAt);
+          nextBillingDate.setMonth(nextBillingDate.getMonth() + offreDuration);
+        }
+      }
+      
+      if (!nextBillingDate || isNaN(nextBillingDate.getTime())) return 0;
+      
+      const today = new Date();
+      const timeDiff = nextBillingDate.getTime() - today.getTime();
+      const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+      
+      return daysDiff > 0 ? daysDiff : 0;
+    } catch (error) {
+      console.error("Error calculating days until next billing:", error);
+      return 0;
     }
   };
 
@@ -433,11 +498,18 @@ const Abonnement = () => {
               </Text>
             </View>
             
-            {/* Next billing date button */}
+            {/* Next billing date button - FIXED */}
             <TouchableOpacity style={styles.firstcardButton}>
               <Text style={styles.cardButtonText}>
-                Date de la prochaine facture{"\n"}
-                {isSubscriptionActive() ? getNextBillingDate() : "Non disponible"}
+                Prochaine facturation{"\n"}
+                <Text style={styles.nextBillingDate}>
+                  {isSubscriptionActive() ? getNextBillingDate() : "Non disponible"}
+                </Text>
+                {isSubscriptionActive() && getDaysUntilNextBilling() > 0 && (
+                  <Text style={styles.daysRemaining}>
+                    {"\n"}Dans {getDaysUntilNextBilling()} jour(s)
+                  </Text>
+                )}
               </Text>
             </TouchableOpacity>
 
@@ -591,6 +663,17 @@ const styles = StyleSheet.create({
     fontSize: width * 0.035, 
     fontWeight: "bold", 
     textAlign: "center" 
+  },
+  // NEW STYLES for next billing date display
+  nextBillingDate: {
+    fontSize: width * 0.04,
+    fontWeight: "bold",
+    color: "#04D9E7",
+  },
+  daysRemaining: {
+    fontSize: width * 0.03,
+    color: "#FFFFFF",
+    fontStyle: "italic",
   },
   priceRow: { 
     flexDirection: "row", 

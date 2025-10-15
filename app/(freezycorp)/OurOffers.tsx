@@ -345,45 +345,6 @@ const OurOffersComponent = () => {
     }
   };
 
-  const handleCancelSubscription = async () => {
-    try {
-      const token = getToken();
-      
-      if (!activeSubscription || !activeSubscription.subscriptionId) {
-        showCustomAlertMessage("Erreur", "Aucun abonnement actif trouvé");
-        return;
-      }
-
-      console.log("Cancelling subscription:", activeSubscription.subscriptionId);
-
-      const response = await axios.post(
-        `${API}/payment/cancel-subscription`,
-        {
-          subscriptionId: activeSubscription.subscriptionId
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.status === 200) {
-        showCustomAlertMessage(
-          "Abonnement annulé",
-          "Votre abonnement a été annulé avec succès. Aucun paiement futur ne sera effectué."
-        );
-        setActiveSubscription(null);
-        
-        // Refresh the page data
-        onRefresh();
-      }
-    } catch (err) {
-      console.error("Cancel subscription error:", err);
-      if (err.response) {
-        showCustomAlertMessage("Erreur", err.response.data.error || "Erreur lors de l'annulation de l'abonnement");
-      } else {
-        showCustomAlertMessage("Erreur", "Erreur de connexion");
-      }
-    }
-  };
-
   const getDurationText = (duree) => {
     switch (duree) {
       case 1: return "1 mois";
@@ -500,29 +461,14 @@ const OurOffersComponent = () => {
         </View>
 
         {isActiveSubscription ? (
-          <View style={styles.subscriptionActions}>
-            <TouchableOpacity
-              style={[styles.cancelButton, styles.disabledButton]}
-              disabled={true}
-            >
-              <Text style={styles.cardButtonText}>
-                Abonnement actif
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.cancelSubscriptionButton}
-              onPress={() => showCustomAlertMessage(
-                "Annuler l'abonnement",
-                "Êtes-vous sûr de vouloir annuler votre abonnement ? Les paiements automatiques seront arrêtés et vous ne serez plus facturé.",
-                handleCancelSubscription,
-                () => console.log("Cancel subscription cancelled")
-              )}
-            >
-              <Text style={styles.cancelButtonText}>
-                Annuler l'abonnement
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[styles.cancelButton, styles.disabledButton]}
+            disabled={true}
+          >
+            <Text style={styles.cardButtonText}>
+              Abonnement actif
+            </Text>
+          </TouchableOpacity>
         ) : (
           <TouchableOpacity
             style={[
@@ -990,32 +936,13 @@ const styles = StyleSheet.create({
     fontSize: width * 0.03,
     fontWeight: 'bold',
   },
-  // Subscription actions
-  subscriptionActions: {
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  cancelSubscriptionButton: {
-    width: width * 0.8,
-    backgroundColor: '#FF3B30',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 8,
-    marginTop: 10,
-  },
   cancelButton: {
     width: width * 0.8,
     backgroundColor: '#A5A5A5',
     paddingVertical: 12,
     paddingHorizontal: 25,
     borderRadius: 8,
-  },
-  cancelButtonText: {
-    color: '#fff',
-    fontSize: width * 0.035,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    marginTop: 20
   },
   // Custom Alert Styles
   modalOverlay: {
