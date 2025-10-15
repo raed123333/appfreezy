@@ -306,8 +306,8 @@ const Profile = () => {
               Votre Profile
             </Text>
             <Text style={styles.sectionText}>
-              Lorem ipsum dolor sit amet. Et omnis{'\n'} 
-              repellendus nam magnam 
+              Gardez votre profil à jour pour profiter {'\n'} 
+              pleinement de FreezyCorp !
             </Text>
           </View>
 
