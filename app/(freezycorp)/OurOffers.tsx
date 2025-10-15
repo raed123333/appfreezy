@@ -27,7 +27,6 @@ const OurOffersComponent = () => {
   const [loading, setLoading] = useState(true);
   const { user, isLoading } = useAuth();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const [clientSecret, setClientSecret] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState('mensuelle');
   const [activeSubscription, setActiveSubscription] = useState(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
@@ -36,12 +35,12 @@ const OurOffersComponent = () => {
   const [alertConfig, setAlertConfig] = useState({ 
     title: '', 
     message: '', 
-    onConfirm: null as (() => void) | null,
-    onCancel: null as (() => void) | null 
+    onConfirm: null,
+    onCancel: null 
   });
 
   // Function to show custom alert
-  const showCustomAlertMessage = (title: string, message: string, onConfirm?: () => void, onCancel?: () => void) => {
+  const showCustomAlertMessage = (title, message, onConfirm, onCancel) => {
     setAlertConfig({
       title,
       message,
@@ -82,7 +81,7 @@ const OurOffersComponent = () => {
     }
   }, [user]);
 
-  // Fetch active subscription
+  // Fetch active subscription - UPDATED
   useEffect(() => {
     const fetchActiveSubscription = async () => {
       try {
@@ -92,7 +91,7 @@ const OurOffersComponent = () => {
           return;
         }
 
-        const response = await fetch(`${API}/payment/history`, {
+        const response = await fetch(`${API}/payment/active-subscriptions`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -101,35 +100,16 @@ const OurOffersComponent = () => {
         });
 
         if (response.ok) {
-          const payments = await response.json();
-
-          if (Array.isArray(payments)) {
-            // Filter successful payments and find the latest active one
-            const succeededPayments = payments.filter(payment =>
-              payment.status === 'succeeded' || payment.status === 'completed'
-            );
-
-            const latestActivePayment = succeededPayments.sort((a, b) =>
-              new Date(b.createdAt || b.dateDebut).getTime() - new Date(a.createdAt || a.dateDebut).getTime()
-            )[0] || null;
-
-            // Check if subscription is still active
-            if (latestActivePayment && latestActivePayment.dateFin) {
-              const endDate = new Date(latestActivePayment.dateFin);
-              const today = new Date();
-
-              // Compare dates without time to avoid timezone issues
-              const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-              const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-              if (endDateOnly > todayOnly) {
-                setActiveSubscription(latestActivePayment);
-              } else {
-                setActiveSubscription(null);
-              }
-            } else {
-              setActiveSubscription(null);
-            }
+          const subscriptions = await response.json();
+          
+          if (Array.isArray(subscriptions) && subscriptions.length > 0) {
+            // Get the latest active subscription with correct status
+            const latestActiveSubscription = subscriptions.find(sub => 
+              sub.isActive === true && 
+              ['succeeded', 'active', 'paid'].includes(sub.status)
+            ) || subscriptions[0];
+            
+            setActiveSubscription(latestActiveSubscription);
           } else {
             setActiveSubscription(null);
           }
@@ -201,7 +181,7 @@ const OurOffersComponent = () => {
     const token = getToken();
     if (token) {
       try {
-        const response = await fetch(`${API}/payment/history`, {
+        const response = await fetch(`${API}/payment/active-subscriptions`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -210,32 +190,15 @@ const OurOffersComponent = () => {
         });
 
         if (response.ok) {
-          const payments = await response.json();
-
-          if (Array.isArray(payments)) {
-            const succeededPayments = payments.filter(payment =>
-              payment.status === 'succeeded' || payment.status === 'completed'
-            );
-
-            const latestActivePayment = succeededPayments.sort((a, b) =>
-              new Date(b.createdAt || b.dateDebut).getTime() - new Date(a.createdAt || a.dateDebut).getTime()
-            )[0] || null;
-
-            if (latestActivePayment && latestActivePayment.dateFin) {
-              const endDate = new Date(latestActivePayment.dateFin);
-              const today = new Date();
-
-              const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-              const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-              if (endDateOnly > todayOnly) {
-                setActiveSubscription(latestActivePayment);
-              } else {
-                setActiveSubscription(null);
-              }
-            } else {
-              setActiveSubscription(null);
-            }
+          const subscriptions = await response.json();
+          if (Array.isArray(subscriptions) && subscriptions.length > 0) {
+            const latestActiveSubscription = subscriptions.find(sub => 
+              sub.isActive === true && 
+              ['succeeded', 'active', 'paid'].includes(sub.status)
+            ) || subscriptions[0];
+            setActiveSubscription(latestActiveSubscription);
+          } else {
+            setActiveSubscription(null);
           }
         }
       } catch (error) {
@@ -274,33 +237,15 @@ const OurOffersComponent = () => {
       return true;
     }
 
-    if (activeSubscription.dateFin) {
-      const endDate = new Date(activeSubscription.dateFin);
-      const today = new Date();
-
-      // Compare dates without time to avoid timezone issues
-      const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-      const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-      const canPurchase = endDateOnly <= todayOnly;
-
-      console.log("Subscription end date:", endDateOnly);
-      console.log("Today:", todayOnly);
-      console.log("Can purchase:", canPurchase);
-
-      return canPurchase;
-    }
-
-    console.log("No end date - can purchase");
-    return true;
+    return !activeSubscription.isActive || !['succeeded', 'active', 'paid'].includes(activeSubscription.status);
   };
 
-  const handlePayment = async (price, offreId, offreTitle, duree) => {
+  const handleSubscription = async (price, offreId, offreTitle, duree) => {
     // Check if user can purchase new offer
     if (!canPurchaseNewOffer()) {
       showCustomAlertMessage(
         "Abonnement actif",
-        "Vous avez déjà un abonnement en cours. Vous ne pouvez pas acheter une nouvelle offre avant la fin de votre abonnement actuel."
+        "Vous avez déjà un abonnement en cours. Vous devez d'abord annuler votre abonnement actuel avant de souscrire à une nouvelle offre."
       );
       return;
     }
@@ -308,19 +253,34 @@ const OurOffersComponent = () => {
     try {
       const token = getToken();
 
+      console.log("Creating subscription for:", {
+        amount: price,
+        description: `Abonnement: ${offreTitle} - ${getPeriodDisplayName(selectedPeriod)}`,
+        offreId,
+        duree
+      });
+
+      // Use the setup intent method as fallback
       const response = await axios.post(
-        `${API}/payment/create-payment-intent`,
+        `${API}/payment/create-subscription-setup`,
         {
           amount: price,
-          description: `Achat Offre: ${offreTitle} - ${getPeriodDisplayName(selectedPeriod)}`,
+          description: `Abonnement: ${offreTitle} - ${getPeriodDisplayName(selectedPeriod)}`,
           offreId: offreId || null,
           duree: duree
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
       );
 
+      console.log("Subscription setup response:", response.data);
+
       const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: response.data.clientSecret,
+        setupIntentClientSecret: response.data.clientSecret,
         merchantDisplayName: "FreezyCorp",
       });
 
@@ -336,20 +296,20 @@ const OurOffersComponent = () => {
         console.log("Payment error:", paymentError);
         showCustomAlertMessage("Erreur de paiement", paymentError.message);
       } else {
-        const confirmResponse = await axios.post(
-          `${API}/payment/confirm`,
+        // Payment method setup successful - complete the subscription
+        const completeResponse = await axios.post(
+          `${API}/payment/complete-subscription`,
           {
-            paymentIntentId: response.data.paymentIntentId,
-            status: "succeeded"
+            setupIntentId: response.data.setupIntentId,
+            paymentId: response.data.paymentId
           },
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        console.log("Payment confirmed:", confirmResponse.data);
-        showCustomAlertMessage("Succès", "Paiement effectué avec succès!");
-
-        // Refresh subscription data after successful payment
-        const subscriptionResponse = await fetch(`${API}/payment/history`, {
+        console.log("Subscription completed:", completeResponse.data);
+        
+        // Refresh subscription data
+        const subscriptionResponse = await fetch(`${API}/payment/active-subscriptions`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -358,30 +318,66 @@ const OurOffersComponent = () => {
         });
 
         if (subscriptionResponse.ok) {
-          const payments = await subscriptionResponse.json();
-          const succeededPayments = payments.filter(payment =>
-            payment.status === 'succeeded' || payment.status === 'completed'
-          );
-
-          const latestActivePayment = succeededPayments.sort((a, b) =>
-            new Date(b.createdAt || b.dateDebut).getTime() - new Date(a.createdAt || a.dateDebut).getTime()
-          )[0] || null;
-
-          setActiveSubscription(latestActivePayment);
+          const subscriptions = await subscriptionResponse.json();
+          if (Array.isArray(subscriptions) && subscriptions.length > 0) {
+            const latestActiveSubscription = subscriptions.find(sub => 
+              sub.isActive === true && 
+              ['succeeded', 'active', 'paid'].includes(sub.status)
+            ) || subscriptions[0];
+            setActiveSubscription(latestActiveSubscription);
+          }
           
-          // Show success message with option to go to RendezVous
           showCustomAlertMessage(
             "Félicitations!",
-            "Votre abonnement a été activé avec succès! Vous pouvez maintenant prendre rendez-vous.",
+            "Votre abonnement a été activé avec succès! Les paiements seront automatiquement renouvelés. Vous pouvez maintenant prendre rendez-vous.",
             () => router.navigate('/RendezVous')
           );
         }
       }
     } catch (err) {
-      console.error("Payment process error:", err);
+      console.error("Subscription process error:", err);
       if (err.response) {
         console.error("Backend error response:", err.response.data);
-        showCustomAlertMessage("Erreur", err.response.data.error || "Erreur lors du paiement");
+        showCustomAlertMessage("Erreur", err.response.data.error || "Erreur lors de la souscription");
+      } else {
+        showCustomAlertMessage("Erreur", "Erreur de connexion");
+      }
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    try {
+      const token = getToken();
+      
+      if (!activeSubscription || !activeSubscription.subscriptionId) {
+        showCustomAlertMessage("Erreur", "Aucun abonnement actif trouvé");
+        return;
+      }
+
+      console.log("Cancelling subscription:", activeSubscription.subscriptionId);
+
+      const response = await axios.post(
+        `${API}/payment/cancel-subscription`,
+        {
+          subscriptionId: activeSubscription.subscriptionId
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.status === 200) {
+        showCustomAlertMessage(
+          "Abonnement annulé",
+          "Votre abonnement a été annulé avec succès. Aucun paiement futur ne sera effectué."
+        );
+        setActiveSubscription(null);
+        
+        // Refresh the page data
+        onRefresh();
+      }
+    } catch (err) {
+      console.error("Cancel subscription error:", err);
+      if (err.response) {
+        showCustomAlertMessage("Erreur", err.response.data.error || "Erreur lors de l'annulation de l'abonnement");
       } else {
         showCustomAlertMessage("Erreur", "Erreur de connexion");
       }
@@ -401,20 +397,28 @@ const OurOffersComponent = () => {
   const getSubscriptionStatusMessage = () => {
     if (subscriptionLoading) return "Vérification de votre abonnement...";
 
-    if (activeSubscription) {
-      const endDate = new Date(activeSubscription.dateFin);
+    if (activeSubscription && activeSubscription.isActive && ['succeeded', 'active', 'paid'].includes(activeSubscription.status)) {
+      const nextBillingDate = new Date(activeSubscription.nextBillingDate);
       const today = new Date();
 
-      // Compare dates without time to avoid timezone issues
-      const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      const nextBillingOnly = new Date(nextBillingDate.getFullYear(), nextBillingDate.getMonth(), nextBillingDate.getDate());
       const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-      const daysLeft = Math.ceil((endDateOnly - todayOnly) / (1000 * 60 * 60 * 24));
+      const daysLeft = Math.ceil((nextBillingOnly - todayOnly) / (1000 * 60 * 60 * 24));
 
-      return `Abonnement actif - Expire dans ${daysLeft} jour(s)`;
+      return `Abonnement actif - Prochain paiement dans ${daysLeft} jour(s)`;
     }
 
     return null;
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
   };
 
   const renderCard = (offre, index) => {
@@ -426,7 +430,10 @@ const OurOffersComponent = () => {
     const subscriptionMessage = getSubscriptionStatusMessage();
 
     // Check if this is the active subscription offer
-    const isActiveSubscription = activeSubscription && activeSubscription.offreId === offre.idOffre;
+    const isActiveSubscription = activeSubscription && 
+                                activeSubscription.offreId === offre.idOffre && 
+                                activeSubscription.isActive && 
+                                ['succeeded', 'active', 'paid'].includes(activeSubscription.status);
 
     return (
       <Pressable
@@ -437,7 +444,7 @@ const OurOffersComponent = () => {
           isHovered ? styles.firstcard : styles.secondecard,
         ]}
       >
-        {/* Only show "Abonnement actif" tag on the active subscription offer */}
+        {/* Show "Abonnement actif" tag on the active subscription offer */}
         {isActiveSubscription && (
           <View style={styles.overlayActive}>
             <Text style={styles.activeText}>Abonnement actif</Text>
@@ -452,9 +459,14 @@ const OurOffersComponent = () => {
           {offre.description || "Idéale pour une flexibilité maximale, sans engagement à long terme."}
         </Text>
 
-        {subscriptionMessage && (
+        {subscriptionMessage && isActiveSubscription && (
           <Text style={styles.subscriptionMessage}>
             {subscriptionMessage}
+            {activeSubscription.nextBillingDate && (
+              <Text style={styles.nextBillingDate}>
+                {"\n"}Prochaine facturation: {formatDate(activeSubscription.nextBillingDate)}
+              </Text>
+            )}
           </Text>
         )}
 
@@ -487,19 +499,44 @@ const OurOffersComponent = () => {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[
-            isHovered ? styles.firstcardButton : styles.secondecardButton,
-            (!canPurchase || isActiveSubscription) && styles.disabledButton
-          ]}
-          onPress={() => handlePayment(offre.prix, offre.idOffre, offre.titre, offre.duree)}
-          disabled={!canPurchase || isActiveSubscription}
-        >
-          <Text style={styles.cardButtonText}>
-            {isActiveSubscription ? "Abonnement actif" : 
-             canPurchase ? "Profitez maintenant" : "Abonnement actif"}
-          </Text>
-        </TouchableOpacity>
+        {isActiveSubscription ? (
+          <View style={styles.subscriptionActions}>
+            <TouchableOpacity
+              style={[styles.cancelButton, styles.disabledButton]}
+              disabled={true}
+            >
+              <Text style={styles.cardButtonText}>
+                Abonnement actif
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelSubscriptionButton}
+              onPress={() => showCustomAlertMessage(
+                "Annuler l'abonnement",
+                "Êtes-vous sûr de vouloir annuler votre abonnement ? Les paiements automatiques seront arrêtés et vous ne serez plus facturé.",
+                handleCancelSubscription,
+                () => console.log("Cancel subscription cancelled")
+              )}
+            >
+              <Text style={styles.cancelButtonText}>
+                Annuler l'abonnement
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[
+              isHovered ? styles.firstcardButton : styles.secondecardButton,
+              !canPurchase && styles.disabledButton
+            ]}
+            onPress={() => handleSubscription(offre.prix, offre.idOffre, offre.titre, offre.duree)}
+            disabled={!canPurchase}
+          >
+            <Text style={styles.cardButtonText}>
+              {canPurchase ? "Souscrire maintenant" : "Abonnement en cours"}
+            </Text>
+          </TouchableOpacity>
+        )}
       </Pressable>
     );
   };
@@ -540,7 +577,7 @@ const OurOffersComponent = () => {
                   onPress={handleCustomAlertCancel}
                 >
                   <Text style={[styles.alertButtonText, styles.alertButtonTextSecondary]}>
-                    Continuer
+                    Annuler
                   </Text>
                 </TouchableOpacity>
               )}
@@ -549,7 +586,7 @@ const OurOffersComponent = () => {
                 onPress={alertConfig.onConfirm ? handleCustomAlertConfirm : handleCustomAlertClose}
               >
                 <Text style={styles.alertButtonText}>
-                  {alertConfig.onConfirm ? "Prendre Rendez-vous" : "OK"}
+                  {alertConfig.onConfirm ? "Confirmer" : "OK"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -932,6 +969,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontStyle: 'italic',
   },
+  nextBillingDate: {
+    fontSize: width * 0.025,
+    color: '#FFFFFF',
+    fontStyle: 'normal',
+  },
   // Active subscription tag styles
   overlayActive: {
     position: 'absolute',
@@ -947,6 +989,33 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: width * 0.03,
     fontWeight: 'bold',
+  },
+  // Subscription actions
+  subscriptionActions: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  cancelSubscriptionButton: {
+    width: width * 0.8,
+    backgroundColor: '#FF3B30',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  cancelButton: {
+    width: width * 0.8,
+    backgroundColor: '#A5A5A5',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontSize: width * 0.035,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   // Custom Alert Styles
   modalOverlay: {

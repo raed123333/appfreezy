@@ -17,7 +17,7 @@ const RendezVous = () => {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [successMessage, setSuccessMessage] = useState<string>("");
-  const { user, logout, getAuthToken } = useAuth(); // Added getAuthToken
+  const { user, logout, getAuthToken } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [holidays, setHolidays] = useState<{ dateConge: string }[]>([]);
   const [interventionLimits, setInterventionLimits] = useState<any>(null);
@@ -25,97 +25,83 @@ const RendezVous = () => {
   const [refreshSubscription, setRefreshSubscription] = useState(0);
   const [showCustomAlert, setShowCustomAlert] = useState(false);
   const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: '', onPress: null as (() => void) | null });
-  const [appointmentToCancel, setAppointmentToCancel] = useState<number | null>(null); // NEW: Track appointment to cancel
+  const [appointmentToCancel, setAppointmentToCancel] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // FIXED: Improved user ID extraction with better fallbacks
+  // FIXED: Simplified user ID extraction
   const getUserId = () => {
-    if (!user) {
-      console.log("User object is null");
-      return null;
-    }
+    if (!user) return null;
     
     // Try multiple possible locations for user ID
     const userId = user?.idU || user?.id || user?.utilisateur?.idU || user?.utilisateur?.id;
-    
-    if (!userId) {
-      console.log("No user ID found in user object:", user);
-    }
-    
     return userId;
   };
 
-  // FIXED: Improved token retrieval with multiple fallbacks
-  const getToken = async (): Promise<string | null> => {
-    try {
-      // First try: Use getAuthToken from AuthContext
-      if (getAuthToken) {
-        const token = await getAuthToken();
-        if (token) return token;
-      }
-      
-      // Second try: Direct from user object
-      if (user?.token) return user.token;
-      
-      // Third try: From nested user object
-      if (user?.utilisateur?.token) return user.utilisateur.token;
-      
-      console.log("No token found in any location");
-      return null;
-    } catch (error) {
-      console.error("Error getting token:", error);
-      return null;
-    }
+  // FIXED: Simplified token retrieval
+  const getToken = (): string | null => {
+    if (!user) return null;
+    
+    // Try multiple possible locations for token
+    const token = user?.token || user?.utilisateur?.token;
+    return token;
   };
 
-  // FIXED: Completely rewritten subscription check with better error handling
+  // FIXED: Completely rewritten and simplified subscription check
   useEffect(() => {
     const checkUserSubscription = async () => {
       try {
+        setIsLoading(true);
         console.log("Checking subscription for user:", user ? "User exists" : "No user");
         
         if (!user) {
           console.log("No user found - setting hasActiveSubscription to false");
           setHasActiveSubscription(false);
+          setIsLoading(false);
           return;
         }
 
-        const token = await getToken();
+        const token = getToken();
         console.log("Token available:", !!token);
 
         if (!token) {
           console.log("No token available - setting hasActiveSubscription to false");
           setHasActiveSubscription(false);
+          setIsLoading(false);
           return;
         }
 
-        // Try multiple endpoints to check subscription status
-        let subscriptionActive = false;
-
-        // Method 1: Try dedicated subscription status endpoint
+        // Method 1: Check active subscriptions endpoint
         try {
-          const statusResponse = await fetch(`${API}/payment/subscription/status`, {
+          const response = await fetch(`${API}/payment/active-subscriptions`, {
             method: 'GET',
             headers: {
+              'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             }
           });
 
-          if (statusResponse.ok) {
-            const subscriptionData = await statusResponse.json();
-            console.log("Subscription status data:", subscriptionData);
+          if (response.ok) {
+            const subscriptions = await response.json();
+            console.log("Active subscriptions:", subscriptions);
             
-            subscriptionActive = subscriptionData.active || 
-                               (subscriptionData.endDate && new Date(subscriptionData.endDate) > new Date()) ||
-                               (subscriptionData.subscriptionEndDate && new Date(subscriptionData.subscriptionEndDate) > new Date());
+            // Check if there's at least one active subscription
+            const hasActiveSub = Array.isArray(subscriptions) && subscriptions.length > 0 && 
+                               subscriptions.some((sub: any) => 
+                                 sub.isActive === true && 
+                                 ['succeeded', 'active', 'paid'].includes(sub.status)
+                               );
             
-            if (subscriptionActive) {
-              console.log("Active subscription found via status endpoint");
-              setHasActiveSubscription(true);
+            console.log("Has active subscription:", hasActiveSub);
+            setHasActiveSubscription(hasActiveSub);
+            
+            // If we found active subscriptions, we're done
+            if (hasActiveSub) {
+              setIsLoading(false);
               return;
             }
           }
         } catch (error) {
-          console.log("Subscription status endpoint not available, trying payment history");
+          console.log("Active subscriptions endpoint failed, trying payment history");
         }
 
         // Method 2: Check payment history as fallback
@@ -130,48 +116,16 @@ const RendezVous = () => {
 
           if (response.ok) {
             const payments = await response.json();
-            console.log("Payment history received, entries:", payments?.length || 0);
+            console.log("Payment history entries:", payments?.length || 0);
 
-            // FIXED: More comprehensive subscription check
-            const hasActiveSub = payments?.some((payment: any) => {
-              // Check payment status
-              const hasValidStatus = payment.status === 'succeeded' || 
-                                   payment.status === 'completed' || 
-                                   payment.status === 'active' ||
-                                   payment.status === 'paid';
+            // Check for any successful payment
+            const hasSuccessfulPayment = payments?.some((payment: any) => 
+              ['succeeded', 'active', 'paid', 'completed'].includes(payment.status) &&
+              payment.isActive === true
+            );
 
-              // Check subscription end date
-              let hasValidEndDate = false;
-              if (payment.subscriptionEndDate) {
-                const endDate = new Date(payment.subscriptionEndDate);
-                const today = new Date();
-                hasValidEndDate = endDate > today;
-                console.log(`Subscription end date: ${payment.subscriptionEndDate}, Today: ${today}, Valid: ${hasValidEndDate}`);
-              }
-
-              // Check current period end
-              let isCurrentPayment = false;
-              if (payment.currentPeriodEnd) {
-                const periodEnd = new Date(payment.currentPeriodEnd);
-                const today = new Date();
-                isCurrentPayment = periodEnd > today;
-              }
-
-              const isActive = hasValidStatus || hasValidEndDate || isCurrentPayment;
-              
-              if (isActive) {
-                console.log("Active payment found:", {
-                  status: payment.status,
-                  endDate: payment.subscriptionEndDate,
-                  currentPeriodEnd: payment.currentPeriodEnd
-                });
-              }
-              
-              return isActive;
-            });
-
-            console.log("Final subscription check result:", hasActiveSub);
-            setHasActiveSubscription(hasActiveSub);
+            console.log("Has successful payment:", hasSuccessfulPayment);
+            setHasActiveSubscription(hasSuccessfulPayment);
           } else {
             console.log("Payment history response not OK:", response.status);
             setHasActiveSubscription(false);
@@ -183,50 +137,46 @@ const RendezVous = () => {
       } catch (error) {
         console.error("Error in subscription check:", error);
         setHasActiveSubscription(false);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     checkUserSubscription();
   }, [user, refreshSubscription]);
 
-  // FIXED: Improved data fetching with proper authentication
+  // FIXED: Simplified data fetching
   useEffect(() => {
     const fetchData = async () => {
+      if (!hasActiveSubscription || isLoading) {
+        return;
+      }
+
       const userId = getUserId();
-      const token = await getToken();
+      const token = getToken();
       
-      if (userId && token && hasActiveSubscription) {
+      if (userId && token) {
         console.log("Fetching data for user:", userId);
         await fetchUserAppointments(userId);
         await fetchAllAppointments();
         await fetchHolidays();
         await fetchInterventionLimits();
-      } else {
-        console.log("Skipping data fetch - conditions not met:", {
-          hasUserId: !!userId,
-          hasToken: !!token,
-          hasActiveSubscription
-        });
       }
     };
 
     fetchData();
-  }, [user, hasActiveSubscription]);
+  }, [hasActiveSubscription, isLoading]);
 
   useEffect(() => {
-    if (selectedDate && hasActiveSubscription) {
+    if (selectedDate && hasActiveSubscription && !isLoading) {
       fetchAvailableTimeSlots(selectedDate);
     }
-  }, [selectedDate, hasActiveSubscription]);
+  }, [selectedDate, hasActiveSubscription, isLoading]);
 
-  // FIXED: All API calls now use async token retrieval
   const fetchInterventionLimits = async () => {
     try {
-      const token = await getToken();
-      if (!token) {
-        console.log("No token for intervention limits");
-        return;
-      }
+      const token = getToken();
+      if (!token) return;
       
       const response = await axios.get(`${API}/appointment/limits/interventions`, {
         headers: { "Authorization": `Bearer ${token}` }
@@ -239,11 +189,8 @@ const RendezVous = () => {
 
   const fetchHolidays = async () => {
     try {
-      const token = await getToken();
-      if (!token) {
-        console.log("No token for holidays");
-        return;
-      }
+      const token = getToken();
+      if (!token) return;
       
       const response = await axios.get(`${API}/conge/`, {
         headers: { "Authorization": `Bearer ${token}` }
@@ -256,47 +203,33 @@ const RendezVous = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    const userId = getUserId();
-    const token = await getToken();
     
-    console.log("Refreshing data:", { userId, hasToken: !!token, hasActiveSubscription });
-    
-    if (userId && token && hasActiveSubscription) {
-      await fetchUserAppointments(userId);
-      await fetchAllAppointments();
-      await fetchHolidays();
-      await fetchInterventionLimits();
-      if (selectedDate) {
-        await fetchAvailableTimeSlots(selectedDate);
-      }
-    }
-    
+    // Refresh subscription status first
     setRefreshSubscription(prev => prev + 1);
-    setRefreshing(false);
-  };
-
-  // NEW: Function to refresh all data
-  const refreshAllData = async () => {
-    const userId = getUserId();
-    const token = await getToken();
     
-    if (userId && token && hasActiveSubscription) {
-      console.log("Auto-refreshing data after appointment cancellation");
-      await fetchUserAppointments(userId);
-      await fetchAllAppointments();
-      await fetchHolidays();
-      await fetchInterventionLimits();
-      if (selectedDate) {
-        await fetchAvailableTimeSlots(selectedDate);
+    // Then refresh other data if user has active subscription
+    if (hasActiveSubscription) {
+      const userId = getUserId();
+      const token = getToken();
+      
+      if (userId && token) {
+        await fetchUserAppointments(userId);
+        await fetchAllAppointments();
+        await fetchHolidays();
+        await fetchInterventionLimits();
+        if (selectedDate) {
+          await fetchAvailableTimeSlots(selectedDate);
+        }
       }
     }
+    
+    setRefreshing(false);
   };
 
   const fetchUserAppointments = async (userId: number) => {
     try {
-      const token = await getToken();
+      const token = getToken();
       if (!token) {
-        console.log("No token for user appointments");
         setPreBookedDates([]);
         return;
       }
@@ -327,11 +260,8 @@ const RendezVous = () => {
 
   const fetchAllAppointments = async () => {
     try {
-      const token = await getToken();
-      if (!token) {
-        console.log("No token for all appointments");
-        return;
-      }
+      const token = getToken();
+      if (!token) return;
 
       const response = await axios.get(`${API}/appointment/all`, {
         headers: { "Authorization": `Bearer ${token}` }
@@ -354,9 +284,8 @@ const RendezVous = () => {
 
   const fetchAvailableTimeSlots = async (date: string) => {
     try {
-      const token = await getToken();
+      const token = getToken();
       if (!token) {
-        console.log("No token for available slots");
         setAvailableSlots([]);
         return;
       }
@@ -387,7 +316,6 @@ const RendezVous = () => {
     setShowCustomAlert(true);
   };
 
-  // NEW: Show confirmation alert for appointment cancellation
   const showCancelConfirmation = (idAppoin: number) => {
     setAppointmentToCancel(idAppoin);
     setAlertConfig({
@@ -448,7 +376,7 @@ const RendezVous = () => {
     }
 
     try {
-      const token = await getToken();
+      const token = getToken();
       if (!token) {
         setErrorMessage("Erreur d'authentification. Veuillez vous reconnecter.");
         return;
@@ -472,6 +400,12 @@ const RendezVous = () => {
       });
       setShowCustomAlert(true);
 
+      // Refresh data
+      await fetchUserAppointments(userId);
+      await fetchAllAppointments();
+      await fetchAvailableTimeSlots(selectedDate);
+      await fetchInterventionLimits();
+
     } catch (error: any) {
       console.log("Appointment error:", error);
       if (error.response?.data?.error) {
@@ -489,22 +423,13 @@ const RendezVous = () => {
     }
     
     if (alertConfig.title === 'Succès') {
-      const userId = getUserId();
-      if (userId) {
-        setSuccessMessage(alertConfig.message.includes('annulé') ? "Rendez-vous annulé avec succès!" : "Rendez-vous réservé avec succès!");
-        setErrorMessage("");
-        fetchUserAppointments(userId);
-        fetchAllAppointments();
-        fetchAvailableTimeSlots(selectedDate);
-        fetchInterventionLimits();
-      }
+      setSuccessMessage("Rendez-vous réservé avec succès!");
+      setErrorMessage("");
     }
     
-    // Reset appointment to cancel
     setAppointmentToCancel(null);
   };
 
-  // NEW: Handle confirmed cancellation
   const handleConfirmCancel = async () => {
     if (appointmentToCancel) {
       await performCancelAppointment(appointmentToCancel);
@@ -515,7 +440,7 @@ const RendezVous = () => {
 
   const performCancelAppointment = async (idAppoin: number) => {
     try {
-      const token = await getToken();
+      const token = getToken();
       if (!token) {
         setErrorMessage("Erreur d'authentification. Veuillez vous reconnecter.");
         return;
@@ -525,8 +450,14 @@ const RendezVous = () => {
         headers: { "Authorization": `Bearer ${token}` }
       });
 
-      // NEW: Auto-refresh data after successful cancellation
-      await refreshAllData();
+      // Refresh data
+      const userId = getUserId();
+      if (userId) {
+        await fetchUserAppointments(userId);
+        await fetchAllAppointments();
+        await fetchAvailableTimeSlots(selectedDate);
+        await fetchInterventionLimits();
+      }
 
       setAlertConfig({
         title: 'Succès',
@@ -600,6 +531,15 @@ const RendezVous = () => {
   };
 
   const renderInterventionLimits = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.limitCard}>
+          <Text style={styles.limitTitle}>Vérification...</Text>
+          <Text style={styles.limitText}>Vérification de votre abonnement en cours</Text>
+        </View>
+      );
+    }
+
     if (!hasActiveSubscription) {
       return (
         <View style={styles.limitCard}>
@@ -678,7 +618,10 @@ const RendezVous = () => {
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.alertButton}
-                    onPress={handleCustomAlertClose}
+                    onPress={() => {
+                      handleCustomAlertClose();
+                      router.navigate('/OurOffers');
+                    }}
                   >
                     <Text style={styles.alertButtonText}>Voir les offres</Text>
                   </TouchableOpacity>
@@ -758,7 +701,7 @@ const RendezVous = () => {
 
           {renderInterventionLimits()}
 
-          {hasActiveSubscription && (
+          {hasActiveSubscription && !isLoading && (
             <>
               <View style={styles.holidayCard}>
                 <Text style={styles.holidayCardTitle}>Jours de Congé</Text>
@@ -775,7 +718,6 @@ const RendezVous = () => {
 
               <View style={styles.secondecard}>
                 <Text style={styles.secondecardTitle}>Mes Rendez-vous</Text>
-                {/* FIXED: Keep appointments with status "effectué" in the list */}
                 {preBookedDates.length > 0 ? (
                   preBookedDates
                     .map((item, index) => (
@@ -787,7 +729,6 @@ const RendezVous = () => {
                             Statut: {item.statusAppoi}
                           </Text>
                         </View>
-                        {/* UPDATED: Show cancel button only for "Non_confirmé" status */}
                         {item.statusAppoi === "Non_confirmé" ? (
                           <TouchableOpacity 
                             style={styles.cancelButton}
@@ -872,7 +813,6 @@ const RendezVous = () => {
   );
 };
 
-// Your existing styles remain exactly the same...
 const styles = StyleSheet.create({
   container: {
     position: "absolute",

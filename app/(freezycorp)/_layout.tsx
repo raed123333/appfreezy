@@ -86,7 +86,7 @@ export default function FreezyCorpLayout() {
   const [refreshSubscription, setRefreshSubscription] = useState(0);
   const [showCustomAlert, setShowCustomAlert] = useState(false);
 
-  // Check if user has an active subscription
+  // Check if user has an active subscription - UPDATED
   useEffect(() => {
     const checkUserSubscription = async () => {
       try {
@@ -95,15 +95,15 @@ export default function FreezyCorpLayout() {
           return;
         }
 
-        const token = user?.token || null;
+        const token = user?.token || user?.utilisateur?.token || null;
         
         if (!token) {
           setHasActiveSubscription(false);
           return;
         }
 
-        // Fetch user's payment history to check for active subscription
-        const response = await fetch(`${API}/payment/history`, {
+        // Fetch user's active subscriptions
+        const response = await fetch(`${API}/payment/active-subscriptions`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -112,16 +112,39 @@ export default function FreezyCorpLayout() {
         });
 
         if (response.ok) {
-          const payments = await response.json();
+          const subscriptions = await response.json();
           
-          // Check if user has any successful payments
-          const hasSucceededPayments = payments.some((payment: any) => 
-            payment.status === 'succeeded' || payment.status === 'completed'
-          );
+          // Check if user has any active subscriptions with correct status
+          const hasActiveSub = Array.isArray(subscriptions) && subscriptions.length > 0 && 
+                             subscriptions.some((sub: any) => 
+                               sub.isActive === true && 
+                               ['succeeded', 'active', 'paid'].includes(sub.status)
+                             );
           
-          setHasActiveSubscription(hasSucceededPayments);
+          setHasActiveSubscription(hasActiveSub);
         } else {
-          setHasActiveSubscription(false);
+          // Fallback to payment history
+          const paymentResponse = await fetch(`${API}/payment/history`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (paymentResponse.ok) {
+            const payments = await paymentResponse.json();
+            
+            // Check if user has any successful payments
+            const hasSucceededPayments = payments.some((payment: any) => 
+              ['succeeded', 'active', 'paid', 'completed'].includes(payment.status) &&
+              payment.isActive === true
+            );
+            
+            setHasActiveSubscription(hasSucceededPayments);
+          } else {
+            setHasActiveSubscription(false);
+          }
         }
       } catch (error) {
         console.error("Error checking subscription:", error);

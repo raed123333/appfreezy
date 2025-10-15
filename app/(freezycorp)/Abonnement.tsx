@@ -7,6 +7,19 @@ import { API } from "@/config";
 
 const { width, height } = Dimensions.get("window");
 
+// Define the Subscription interface matching OurOffers
+interface Subscription {
+  id: number;
+  subscriptionId: string;
+  status: string;
+  isActive: boolean;
+  nextBillingDate: string;
+  offreId: number;
+  amount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Define the Payment interface
 interface Payment {
   idpay: number;
@@ -29,7 +42,7 @@ interface Payment {
 
 const Abonnement = () => {
   const { user, logout } = useAuth();
-  const [activeSubscription, setActiveSubscription] = useState<Payment | null>(null);
+  const [activeSubscription, setActiveSubscription] = useState<Subscription | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
@@ -38,15 +51,17 @@ const Abonnement = () => {
   const [alertConfig, setAlertConfig] = useState({ 
     title: '', 
     message: '', 
-    onConfirm: null as (() => void) | null 
+    onConfirm: null as (() => void) | null,
+    onCancel: null as (() => void) | null 
   });
 
   // Function to show custom alert
-  const showCustomAlertMessage = (title: string, message: string, onConfirm?: () => void) => {
+  const showCustomAlertMessage = (title: string, message: string, onConfirm?: () => void, onCancel?: () => void) => {
     setAlertConfig({
       title,
       message,
-      onConfirm: onConfirm || null
+      onConfirm: onConfirm || null,
+      onCancel: onCancel || null
     });
     setShowCustomAlert(true);
   };
@@ -62,28 +77,11 @@ const Abonnement = () => {
     setShowCustomAlert(false);
   };
 
-  // Chargement initial
-  useEffect(() => {
-    fetchUserSubscriptionData();
-  }, [user]);
-
-  // Rechargement quand la page redevient active
-  useFocusEffect(
-    useCallback(() => {
-      fetchUserSubscriptionData();
-    }, [user])
-  );
-
-  const getUserId = (): number | null => {
-    if (!user) return null;
-    
-    if (user.idU) return user.idU;
-    if (user.utilisateur && user.utilisateur.idU) return user.utilisateur.idU;
-    if (user.user && user.user.idU) return user.user.idU;
-    if (user.parent && user.parent.idU) return user.parent.idU;
-    
-    console.log("Structure user:", JSON.stringify(user, null, 2));
-    return null;
+  const handleCustomAlertCancel = () => {
+    if (alertConfig.onCancel) {
+      alertConfig.onCancel();
+    }
+    setShowCustomAlert(false);
   };
 
   const getAuthToken = (): string | null => {
@@ -96,22 +94,51 @@ const Abonnement = () => {
     return null;
   };
 
-  const fetchUserSubscriptionData = async (): Promise<void> => {
+  // Fetch active subscription - using same logic as OurOffers
+  const fetchActiveSubscription = async (): Promise<void> => {
     try {
-      setLoading(true);
-      
-      const userId = getUserId();
       const token = getAuthToken();
-
-      if (!userId || !token) {
-        console.log("User ID or token not available:", { userId, token });
+      if (!token) {
         setActiveSubscription(null);
-        setPaymentHistory([]);
-        setLoading(false);
         return;
       }
 
-      console.log("Fetching payments for user ID:", userId);
+      const response = await fetch(`${API}/payment/active-subscriptions`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const subscriptions = await response.json();
+        
+        if (Array.isArray(subscriptions) && subscriptions.length > 0) {
+          // Get the latest active subscription with correct status - same logic as OurOffers
+          const latestActiveSubscription = subscriptions.find((sub: Subscription) => 
+            sub.isActive === true && 
+            ['succeeded', 'active', 'paid'].includes(sub.status)
+          ) || subscriptions[0];
+          
+          setActiveSubscription(latestActiveSubscription);
+        } else {
+          setActiveSubscription(null);
+        }
+      } else {
+        setActiveSubscription(null);
+      }
+    } catch (error) {
+      console.error("Error fetching subscription data:", error);
+      setActiveSubscription(null);
+    }
+  };
+
+  // Fetch payment history
+  const fetchPaymentHistory = async (): Promise<void> => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
 
       const response = await fetch(`${API}/payment/history`, {
         method: 'GET',
@@ -121,16 +148,11 @@ const Abonnement = () => {
         }
       });
 
-      console.log("Response status:", response.status);
-
       if (response.ok) {
         const payments: Payment[] = await response.json();
-        console.log("Payments received:", payments.length);
         
-        // Vérification que payments est un tableau valide
         if (!Array.isArray(payments)) {
           console.error("Invalid response format:", payments);
-          setActiveSubscription(null);
           setPaymentHistory([]);
           return;
         }
@@ -139,23 +161,37 @@ const Abonnement = () => {
           payment.status === 'succeeded' || payment.status === 'completed'
         );
         
-        const latestActivePayment = succeededPayments.sort((a, b) => 
-          new Date(b.createdAt || b.dateDebut).getTime() - new Date(a.createdAt || a.dateDebut).getTime()
-        )[0] || null;
-
-        console.log("Active subscription:", latestActivePayment);
-        setActiveSubscription(latestActivePayment);
         setPaymentHistory(succeededPayments);
       } else {
-        const errorText = await response.text();
-        console.error("Failed to fetch payment data:", response.status, errorText);
-        setActiveSubscription(null);
         setPaymentHistory([]);
       }
     } catch (error) {
-      console.error("Error fetching subscription data:", error);
-      setActiveSubscription(null);
+      console.error("Error fetching payment history:", error);
       setPaymentHistory([]);
+    }
+  };
+
+  // Chargement initial
+  useEffect(() => {
+    fetchUserSubscriptionData();
+  }, [user]);
+
+  // Rechargement quand la page redevient active
+  useFocusEffect(
+    useCallback(() => {
+      fetchUserSubscriptionData();
+    }, [user])
+  );
+
+  const fetchUserSubscriptionData = async (): Promise<void> => {
+    try {
+      setLoading(true);
+      await Promise.all([
+        fetchActiveSubscription(),
+        fetchPaymentHistory()
+      ]);
+    } catch (error) {
+      console.error("Error fetching user subscription data:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -170,9 +206,7 @@ const Abonnement = () => {
   const handleDownloadPDF = async (payment: Payment): Promise<void> => {
     try {
       setDownloadingId(payment.idpay);
-      
       await PDFService.downloadAndSharePDF(payment);
-      
     } catch (error) {
       console.error('Download error:', error);
       showCustomAlertMessage(
@@ -208,18 +242,61 @@ const Abonnement = () => {
     }
   };
 
-  const getNextBillingDate = (dateFin: string): string => {
-    if (!dateFin) return "Date non disponible";
+  const getNextBillingDate = (): string => {
+    if (!activeSubscription || !activeSubscription.nextBillingDate) {
+      return "Non disponible";
+    }
     
     try {
-      const nextDate = new Date(dateFin);
+      const nextDate = new Date(activeSubscription.nextBillingDate);
       if (isNaN(nextDate.getTime())) return "Date invalide";
       
-      nextDate.setDate(nextDate.getDate() + 1);
       const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
       return nextDate.toLocaleDateString('fr-FR', options);
     } catch (error) {
       return "Date invalide";
+    }
+  };
+
+  // Cancel subscription function - using same logic as OurOffers
+  const handleCancelSubscription = async (): Promise<void> => {
+    try {
+      const token = getAuthToken();
+      
+      if (!activeSubscription || !activeSubscription.subscriptionId) {
+        showCustomAlertMessage("Erreur", "Aucun abonnement actif trouvé");
+        return;
+      }
+
+      console.log("Cancelling subscription:", activeSubscription.subscriptionId);
+
+      const response = await fetch(`${API}/payment/cancel-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          subscriptionId: activeSubscription.subscriptionId
+        })
+      });
+
+      if (response.status === 200) {
+        showCustomAlertMessage(
+          "Abonnement annulé",
+          "Votre abonnement a été annulé avec succès. Aucun paiement futur ne sera effectué.",
+          () => {
+            // Refresh the data after cancellation
+            fetchUserSubscriptionData();
+          }
+        );
+      } else {
+        const errorData = await response.json();
+        showCustomAlertMessage("Erreur", errorData.error || "Erreur lors de l'annulation de l'abonnement");
+      }
+    } catch (err) {
+      console.error("Cancel subscription error:", err);
+      showCustomAlertMessage("Erreur", "Erreur de connexion lors de l'annulation");
     }
   };
 
@@ -230,12 +307,18 @@ const Abonnement = () => {
       async () => {
         try {
           await logout();
-          // Navigation will be handled by the logout function in AuthContext
         } catch (error) {
           console.error('Error during logout:', error);
         }
       }
     );
+  };
+
+  // Check if subscription is active
+  const isSubscriptionActive = (): boolean => {
+    return activeSubscription !== null && 
+           activeSubscription.isActive && 
+           ['succeeded', 'active', 'paid'].includes(activeSubscription.status);
   };
 
   if (loading) {
@@ -267,10 +350,10 @@ const Abonnement = () => {
               </Text>
             </View>
             <View style={styles.alertFooter}>
-              {alertConfig.onConfirm && (
+              {alertConfig.onCancel && (
                 <TouchableOpacity 
                   style={[styles.alertButton, styles.alertButtonSecondary]}
-                  onPress={handleCustomAlertClose}
+                  onPress={handleCustomAlertCancel}
                 >
                   <Text style={[styles.alertButtonText, styles.alertButtonTextSecondary]}>
                     Annuler
@@ -282,7 +365,7 @@ const Abonnement = () => {
                 onPress={alertConfig.onConfirm ? handleCustomAlertConfirm : handleCustomAlertClose}
               >
                 <Text style={styles.alertButtonText}>
-                  {alertConfig.onConfirm ? "Se déconnecter" : "OK"}
+                  {alertConfig.onConfirm ? "Confirmer" : "OK"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -338,23 +421,44 @@ const Abonnement = () => {
           {/* First Card - Active Subscription */}
           <View style={styles.firstcard}>
             <Text style={styles.firstcardTitle}>
-              {activeSubscription ? getOffreName(activeSubscription.offreId) : "Aucun abonnement actif"}
+              {isSubscriptionActive() ? getOffreName(activeSubscription!.offreId) : "Aucun abonnement actif"}
             </Text>
             <View style={styles.firstcardLine} />
             <View style={styles.priceRow}>
               <Text style={styles.priceNumber}>
-                {activeSubscription ? `${activeSubscription.amount} CHF` : "00 CHF"}
+                {isSubscriptionActive() ? `${activeSubscription!.amount} CHF` : "00 CHF"}
               </Text>
               <Text style={styles.priceText}>
-                {activeSubscription ? "/période" : "/mois"}
+                {isSubscriptionActive() ? "/période" : "/mois"}
               </Text>
             </View>
+            
+            {/* Next billing date button */}
             <TouchableOpacity style={styles.firstcardButton}>
               <Text style={styles.cardButtonText}>
                 Date de la prochaine facture{"\n"}
-                {activeSubscription ? getNextBillingDate(activeSubscription.dateFin) : "Non disponible"}
+                {isSubscriptionActive() ? getNextBillingDate() : "Non disponible"}
               </Text>
             </TouchableOpacity>
+
+            {/* Cancel subscription button - Only show when user has an active subscription */}
+            {isSubscriptionActive() && (
+              <TouchableOpacity 
+                style={styles.cancelSubscriptionButton}
+                onPress={() => 
+                  showCustomAlertMessage(
+                    "Annuler l'abonnement",
+                    "Êtes-vous sûr de vouloir annuler votre abonnement ? Les paiements automatiques seront arrêtés et vous ne serez plus facturé.",
+                    handleCancelSubscription,
+                    () => console.log("Cancel subscription cancelled")
+                  )
+                }
+              >
+                <Text style={styles.cancelButtonText}>
+                  Annuler l'abonnement
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Second Card - Payment History */}
@@ -484,7 +588,7 @@ const styles = StyleSheet.create({
   },
   cardButtonText: { 
     color: "#fff", 
-    fontSize: width * 0.05, 
+    fontSize: width * 0.035, 
     fontWeight: "bold", 
     textAlign: "center" 
   },
@@ -588,6 +692,21 @@ const styles = StyleSheet.create({
     color: '#828282',
     textAlign: 'center',
     marginTop: 20
+  },
+  // Cancel subscription button styles
+  cancelSubscriptionButton: {
+    width: width * 0.8,
+    backgroundColor: "#FF3B30",
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontSize: width * 0.035,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   // Custom Alert Styles
   modalOverlay: {
