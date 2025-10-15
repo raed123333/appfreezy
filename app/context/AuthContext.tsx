@@ -166,12 +166,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       setUser(userData);
 
-      Alert.alert("Succès", "Connexion réussie", [
-        {
-          text: "OK",
-          onPress: () => router.push("../(freezycorp)/Home"),
-        },
-      ]);
+      // Auto navigate to Home after successful Google login
+      router.push("../(freezycorp)/Home");
     } catch (error: any) {
       Alert.alert("Erreur", error.message || "Impossible de créer le compte avec Google");
       throw error;
