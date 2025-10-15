@@ -1,4 +1,4 @@
-/*import { WEB_CLIENT_ID } from "@/config";
+import { WEB_CLIENT_ID } from "@/config";
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { useEffect } from "react";
 import { Image, StyleSheet, TouchableOpacity } from "react-native";
@@ -48,4 +48,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default GoogleButton;*/
+export default GoogleButton;

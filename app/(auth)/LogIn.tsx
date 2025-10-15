@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-//import GoogleButton from "../components/GoogleButton";
+import GoogleButton from "../components/GoogleButton";
 import { useAuth } from "./../context/AuthContext";
 
 const { width, height } = Dimensions.get("window");
@@ -190,7 +190,7 @@ const LogIn = () => {
         </View>
     
       </View>
-       {/*<GoogleButton onPress={registerGoogle} />*/} 
+       <GoogleButton onPress={registerGoogle} /> 
       
     </ScrollView>
   );
