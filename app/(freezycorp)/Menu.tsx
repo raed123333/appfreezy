@@ -209,7 +209,7 @@ const Menu = () => {
           <TouchableOpacity style={styles.closeIconContainer} onPress={() => router.navigate('/(freezycorp)/Home')}>
             <MaterialCommunityIcons 
               name="close" 
-              size={width * 0.06} 
+              size={width * 0.1} 
               color="#FFFFFF" 
             />
           </TouchableOpacity>
