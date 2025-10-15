@@ -24,9 +24,49 @@ const RendezVous = () => {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [refreshSubscription, setRefreshSubscription] = useState(0);
   const [showCustomAlert, setShowCustomAlert] = useState(false);
-  const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: '', onPress: null as (() => void) | null });
+  const [alertConfig, setAlertConfig] = useState({ 
+    title: '', 
+    message: '', 
+    type: '', 
+    onConfirm: null as (() => void) | null,
+    showCancel: false 
+  });
   const [appointmentToCancel, setAppointmentToCancel] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Function to show custom alert
+  const showCustomAlertMessage = (title: string, message: string, type: string = 'info', onConfirm?: () => void, showCancel: boolean = false) => {
+    setAlertConfig({
+      title,
+      message,
+      type,
+      onConfirm: onConfirm || null,
+      showCancel
+    });
+    setShowCustomAlert(true);
+  };
+
+  const handleCustomAlertClose = () => {
+    setShowCustomAlert(false);
+  };
+
+  const handleCustomAlertConfirm = () => {
+    if (alertConfig.onConfirm) {
+      alertConfig.onConfirm();
+    }
+    setShowCustomAlert(false);
+  };
+
+  // Add logout alert function
+  const handleLogout = () => {
+    showCustomAlertMessage(
+      "Déconnexion",
+      "Êtes-vous sûr de vouloir vous déconnecter ?",
+      'warning',
+      () => logout(),
+      true
+    );
+  };
 
   // FIXED: Simplified user ID extraction
   const getUserId = () => {
@@ -306,25 +346,42 @@ const RendezVous = () => {
     }
   };
 
-  const showCustomAlertMessage = (title: string, message: string, onPress?: () => void) => {
-    setAlertConfig({
-      title,
-      message,
-      type: 'info',
-      onPress: onPress || null
-    });
-    setShowCustomAlert(true);
-  };
-
   const showCancelConfirmation = (idAppoin: number) => {
     setAppointmentToCancel(idAppoin);
-    setAlertConfig({
-      title: '⚠️ Confirmation de suppression',
-      message: 'Êtes-vous sûr de vouloir supprimer ce rendez-vous ? Cette action ne peut pas être annulée.',
-      type: 'warning',
-      onPress: null
-    });
-    setShowCustomAlert(true);
+    showCustomAlertMessage(
+      "⚠️ Confirmation de suppression",
+      "Êtes-vous sûr de vouloir supprimer ce rendez-vous ? Cette action ne peut pas être annulée.",
+      'warning',
+      async () => {
+        try {
+          const token = getToken();
+          if (!token) {
+            setErrorMessage("Erreur d'authentification. Veuillez vous reconnecter.");
+            return;
+          }
+          
+          await axios.delete(`${API}/appointment/${idAppoin}`, {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+
+          // Refresh data
+          const userId = getUserId();
+          if (userId) {
+            await fetchUserAppointments(userId);
+            await fetchAllAppointments();
+            await fetchAvailableTimeSlots(selectedDate);
+            await fetchInterventionLimits();
+          }
+
+          showCustomAlertMessage("Succès", "Votre rendez-vous a été annulé avec succès. ✅");
+
+        } catch (error: any) {
+          console.error("Error canceling appointment:", error.response?.data || error.message);
+          setErrorMessage(error.response?.data?.error || "Erreur de connexion au serveur");
+        }
+      },
+      true
+    );
   };
 
   const handleDatePress = (day: any) => {
@@ -332,6 +389,7 @@ const RendezVous = () => {
       showCustomAlertMessage(
         "Abonnement Requis",
         "Acheter un offre pour avant chose un rendez-vous",
+        'info',
         () => router.navigate('/OurOffers')
       );
       return;
@@ -353,6 +411,7 @@ const RendezVous = () => {
       showCustomAlertMessage(
         "Abonnement Requis",
         "Acheter un offre pour avant chose un rendez-vous",
+        'info',
         () => router.navigate('/OurOffers')
       );
       return;
@@ -393,12 +452,7 @@ const RendezVous = () => {
         }
       });
 
-      setAlertConfig({
-        title: 'Succès',
-        message: 'Votre demande de prise de rendez-vous a été effectuée avec succès. ✅',
-        type: 'success'
-      });
-      setShowCustomAlert(true);
+      showCustomAlertMessage("Succès", "Votre demande de prise de rendez-vous a été effectuée avec succès. ✅");
 
       // Refresh data
       await fetchUserAppointments(userId);
@@ -412,72 +466,6 @@ const RendezVous = () => {
         showCustomAlertMessage("Erreur", error.response.data.error);
       }
       setErrorMessage(error.response?.data?.error || "Erreur de connexion au serveur");
-    }
-  };
-
-  const handleCustomAlertClose = () => {
-    setShowCustomAlert(false);
-    
-    if (alertConfig.onPress) {
-      alertConfig.onPress();
-    }
-    
-    if (alertConfig.title === 'Succès') {
-      setSuccessMessage("Rendez-vous réservé avec succès!");
-      setErrorMessage("");
-    }
-    
-    setAppointmentToCancel(null);
-  };
-
-  const handleConfirmCancel = async () => {
-    if (appointmentToCancel) {
-      await performCancelAppointment(appointmentToCancel);
-    }
-    setAppointmentToCancel(null);
-    setShowCustomAlert(false);
-  };
-
-  const performCancelAppointment = async (idAppoin: number) => {
-    try {
-      const token = getToken();
-      if (!token) {
-        setErrorMessage("Erreur d'authentification. Veuillez vous reconnecter.");
-        return;
-      }
-      
-      await axios.delete(`${API}/appointment/${idAppoin}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-
-      // Refresh data
-      const userId = getUserId();
-      if (userId) {
-        await fetchUserAppointments(userId);
-        await fetchAllAppointments();
-        await fetchAvailableTimeSlots(selectedDate);
-        await fetchInterventionLimits();
-      }
-
-      setAlertConfig({
-        title: 'Succès',
-        message: 'Votre rendez-vous a été annulé avec succès. ✅',
-        type: 'success'
-      });
-      setShowCustomAlert(true);
-
-    } catch (error: any) {
-      console.error("Error canceling appointment:", error.response?.data || error.message);
-      setErrorMessage(error.response?.data?.error || "Erreur de connexion au serveur");
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      router.replace('/');
-    } catch (error) {
-      console.error('Error during logout:', error);
     }
   };
 
@@ -591,6 +579,7 @@ const RendezVous = () => {
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Custom Alert Modal */}
       <Modal
         visible={showCustomAlert}
         transparent={true}
@@ -608,25 +597,7 @@ const RendezVous = () => {
               </Text>
             </View>
             <View style={styles.alertFooter}>
-              {alertConfig.title === 'Abonnement Requis' ? (
-                <>
-                  <TouchableOpacity 
-                    style={[styles.alertButton, styles.alertButtonSecondary]}
-                    onPress={handleCustomAlertClose}
-                  >
-                    <Text style={styles.alertButtonText}>Annuler</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.alertButton}
-                    onPress={() => {
-                      handleCustomAlertClose();
-                      router.navigate('/OurOffers');
-                    }}
-                  >
-                    <Text style={styles.alertButtonText}>Voir les offres</Text>
-                  </TouchableOpacity>
-                </>
-              ) : alertConfig.title === '⚠️ Confirmation de suppression' ? (
+              {alertConfig.showCancel ? (
                 <>
                   <TouchableOpacity 
                     style={[styles.alertButton, styles.alertButtonSecondary]}
@@ -635,10 +606,12 @@ const RendezVous = () => {
                     <Text style={[styles.alertButtonText, styles.alertButtonSecondaryText]}>Annuler</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={[styles.alertButton, { backgroundColor: '#FF6B6B', borderColor: '#FF6B6B' }]}
-                    onPress={handleConfirmCancel}
+                    style={[styles.alertButton, alertConfig.type === 'warning' && styles.alertButtonWarning]}
+                    onPress={handleCustomAlertConfirm}
                   >
-                    <Text style={styles.alertButtonText}>Supprimer</Text>
+                    <Text style={styles.alertButtonText}>
+                      {alertConfig.type === 'warning' ? 'Confirmer' : 'OK'}
+                    </Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -1127,6 +1100,10 @@ const styles = StyleSheet.create({
   alertButtonSecondary: {
     backgroundColor: 'transparent',
     borderColor: '#04D9E7'
+  },
+  alertButtonWarning: {
+    backgroundColor: '#FF6B6B',
+    borderColor: '#FF6B6B'
   },
   alertButtonText: {
     color: '#080808',

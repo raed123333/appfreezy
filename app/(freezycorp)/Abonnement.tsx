@@ -375,6 +375,10 @@ const Abonnement = () => {
         } catch (error) {
           console.error('Error during logout:', error);
         }
+      },
+      () => {
+        // Cancel action - do nothing
+        console.log("Logout cancelled");
       }
     );
   };
@@ -430,7 +434,7 @@ const Abonnement = () => {
                 onPress={alertConfig.onConfirm ? handleCustomAlertConfirm : handleCustomAlertClose}
               >
                 <Text style={styles.alertButtonText}>
-                  {alertConfig.onConfirm ? "Confirmer" : "OK"}
+                  {alertConfig.onConfirm ? "Se déconnecter" : "OK"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -557,10 +561,7 @@ const Abonnement = () => {
                       <ActivityIndicator size="small" color="#04D9E7" />
                     ) : (
                       <>
-                        <Image
-                          source={require("../../assets/images/Rectangledownload.png")}                          
-                          style={styles.rectangleDownload}
-                        />
+                        <View style={styles.squareDownload} />
                         <Image
                           source={require("../../assets/images/IconDownload.png")}                          
                           style={styles.iconDownload}
@@ -748,10 +749,12 @@ const styles = StyleSheet.create({
     alignItems: "center", 
     position: "relative" 
   },
-  rectangleDownload: { 
+  // Replaced rectangleDownload with squareDownload
+  squareDownload: { 
     width: 40, 
     height: 40, 
-    resizeMode: "contain" 
+    backgroundColor: "#080808",
+    borderRadius: 4, // Optional: slightly rounded corners for better appearance
   },
   iconDownload: { 
     position: "absolute", 

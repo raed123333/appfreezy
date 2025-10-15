@@ -229,7 +229,7 @@ const Profile = () => {
   };
 
   return (
-    <ScrollView>
+    <View style={{ flex: 1 }}>
       {/* Custom Alert Modal */}
       <Modal
         visible={showCustomAlert}
@@ -271,6 +271,7 @@ const Profile = () => {
         </View>
       </Modal>
 
+      {/* Fixed top container - Same as Abonnement page */}
       <View style={styles.container}>
         <View style={styles.blueOverlay} />
         <ImageBackground
@@ -278,7 +279,7 @@ const Profile = () => {
           imageStyle={{ opacity: 0.6 }}
           resizeMode="cover"
         >
-          <View style={styles.buttonRow}>
+          <View style={styles.specialbuttonRow}>
             <TouchableOpacity onPress={handleLogout}>
               <Image
                 source={require("../../assets/images/iconBack.png")}              
@@ -286,138 +287,144 @@ const Profile = () => {
               />
             </TouchableOpacity>
             <Link href="./Menu" asChild>
-            <TouchableOpacity >
-              <Image
-                source={require("../../assets/images/iconHome.png")}
-                style={styles.icon}
+              <TouchableOpacity>
+                <Image
+                  source={require("../../assets/images/iconHome.png")}
+                  style={styles.icon}
                 />
-            </TouchableOpacity>
+              </TouchableOpacity>
             </Link>
           </View>
         </ImageBackground>
       </View>
 
-      <View style={styles.inputContainer}>
-        <View style={styles.overlay}>
-          <Text style={styles.title}>
-            Votre Profile
-          </Text>
-          <Text style={styles.sectionText}>
-            Lorem ipsum dolor sit amet. Et omnis{'\n'} 
-            repellendus nam magnam 
-          </Text>
+      {/* Scrollable content */}
+      <ScrollView contentContainerStyle={{ paddingTop: height * 0.1 + 10 }}>
+        <View style={styles.inputContainer}>
+          <View style={styles.overlay}>
+            <Text style={styles.title}>
+              Votre Profile
+            </Text>
+            <Text style={styles.sectionText}>
+              Lorem ipsum dolor sit amet. Et omnis{'\n'} 
+              repellendus nam magnam 
+            </Text>
+          </View>
+
+          {/* Image Picker */}
+          <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
+            {image ? (
+              <Image source={{ uri: image }} style={styles.imagePreview} />
+            ) : (
+              <Text style={styles.imagePlaceholder}>+ Modifier la photo</Text>
+            )}
+          </TouchableOpacity>
+
+          <TextInput 
+            style={styles.input} 
+            placeholder="Nom" 
+            placeholderTextColor="#B0B3C1" 
+            value={nom}
+            onChangeText={setNom}
+          />
+          <TextInput 
+            style={styles.input} 
+            placeholder="Prenom" 
+            placeholderTextColor="#B0B3C1" 
+            value={prenom}
+            onChangeText={setPrenom}
+          />
+          <TextInput 
+            style={styles.input} 
+            placeholder="mail@mail.com" 
+            placeholderTextColor="#B0B3C1" 
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <TextInput 
+            style={styles.input} 
+            placeholder="Nom de l'entreprise" 
+            placeholderTextColor="#B0B3C1" 
+            value={nomEntreprise}
+            onChangeText={setNomEntreprise}
+          />
+          <TextInput 
+            style={styles.input} 
+            placeholder="Adresse" 
+            placeholderTextColor="#B0B3C1" 
+            value={adresse}
+            onChangeText={setAdresse}
+          />
+          <TextInput 
+            style={styles.input} 
+            placeholder="Téléphone" 
+            placeholderTextColor="#B0B3C1" 
+            value={telephone}
+            onChangeText={setTelephone}
+            keyboardType="phone-pad"
+          />
+          <TextInput 
+            style={styles.input} 
+            placeholder="Nouveau mot de passe (optionnel)" 
+            placeholderTextColor="#B0B3C1" 
+            secureTextEntry
+            value={motpasse}
+            onChangeText={setMotpasse}
+          />
+          <TextInput 
+            style={styles.input} 
+            placeholder="Confirmer le mot de passe" 
+            placeholderTextColor="#B0B3C1" 
+            secureTextEntry
+            value={confirmMotpasse}
+            onChangeText={setConfirmMotpasse}
+          />
+
+          <TouchableOpacity 
+            style={[styles.secondeButton, isLoading && styles.disabledButton]} 
+            onPress={handleUpdateProfile}
+            disabled={isLoading}
+          >
+            <Text style={styles.secondeButtonText}>
+              {isLoading ? "Mise à jour..." : "Sauvegarder"}
+            </Text>
+          </TouchableOpacity>
         </View>
-
-        {/* Image Picker */}
-        <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
-          {image ? (
-            <Image source={{ uri: image }} style={styles.imagePreview} />
-          ) : (
-            <Text style={styles.imagePlaceholder}>+ Modifier la photo</Text>
-          )}
-        </TouchableOpacity>
-
-        <TextInput 
-          style={styles.input} 
-          placeholder="Nom" 
-          placeholderTextColor="#B0B3C1" 
-          value={nom}
-          onChangeText={setNom}
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Prenom" 
-          placeholderTextColor="#B0B3C1" 
-          value={prenom}
-          onChangeText={setPrenom}
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="mail@mail.com" 
-          placeholderTextColor="#B0B3C1" 
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Nom de l'entreprise" 
-          placeholderTextColor="#B0B3C1" 
-          value={nomEntreprise}
-          onChangeText={setNomEntreprise}
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Adresse" 
-          placeholderTextColor="#B0B3C1" 
-          value={adresse}
-          onChangeText={setAdresse}
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Téléphone" 
-          placeholderTextColor="#B0B3C1" 
-          value={telephone}
-          onChangeText={setTelephone}
-          keyboardType="phone-pad"
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Nouveau mot de passe (optionnel)" 
-          placeholderTextColor="#B0B3C1" 
-          secureTextEntry
-          value={motpasse}
-          onChangeText={setMotpasse}
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Confirmer le mot de passe" 
-          placeholderTextColor="#B0B3C1" 
-          secureTextEntry
-          value={confirmMotpasse}
-          onChangeText={setConfirmMotpasse}
-        />
-
-        <TouchableOpacity 
-          style={[styles.secondeButton, isLoading && styles.disabledButton]} 
-          onPress={handleUpdateProfile}
-          disabled={isLoading}
-        >
-          <Text style={styles.secondeButtonText}>
-            {isLoading ? "Mise à jour..." : "Sauvegarder"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    height: height * 0.1,
   },
   background: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    height: height * 0.12,
-    borderBottomLeftRadius: 60,
-    borderBottomRightRadius: 60,
+    borderRadius: 100,
     overflow: "hidden",
   },
-  overlay: {
-    alignItems: "center",
+  overlay: { 
+    alignItems: "center" 
   },
-  blueOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#080808",
+  blueOverlay: { 
+    ...StyleSheet.absoluteFillObject, 
+    backgroundColor: "#080808" 
   },
-  title: {
-    fontSize: width * 0.06,
-    fontWeight: "bold",
-    color: "#080808",
-    textAlign: "center",
+  title: { 
+    fontSize: width * 0.06, 
+    fontWeight: "bold", 
+    color: "#080808", 
+    textAlign: "center" 
   },
   sectionText: {
     fontSize: width * 0.035,
@@ -425,24 +432,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#A5A5A5",
   },
-  primaryButton: {
-    backgroundColor: "transparent",
-    padding: 15,
-    borderRadius: 8,
-    width: width * 0.45,
-    alignItems: "center",
+  inputContainer: { 
+    flex: 1, 
+    alignItems: "center", 
+    justifyContent: "center", 
+    marginTop: 20 
   },
-  MotText: {
-    color: "#8D8D8D",
-    fontSize: width * 0.04,
-    fontWeight: "bold",
-    marginBottom: 15,
+  icon: { 
+    marginTop: 10, 
+    width: 20, 
+    height: 30, 
+    resizeMode: "contain" 
   },
-  MotTextTwo: {
-    color: "#04D9E7",
-    fontSize: width * 0.04,
-    fontWeight: "bold",
-    marginBottom: 15,
+  specialbuttonRow: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "center", 
+    marginTop: 15, 
+    width: "100%", 
+    paddingHorizontal: 20 
   },
   secondeButton: {
     backgroundColor: "#04D9E7",
@@ -450,6 +458,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     width: width * 0.80,
     alignItems: "center",
+    marginBottom: 30,
   },
   secondeButtonText: {
     color: "#FFFFFF",
@@ -465,33 +474,6 @@ const styles = StyleSheet.create({
     paddingLeft: 15,
     color: '#23233C',
     marginBottom: 18,
-  },
-  inputContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 30,
-  },
-  TextRow: {
-    flexDirection: "row",
-    justifyContent: "flex-start",
-    alignItems: "center",
-    marginTop: 20,
-    paddingHorizontal: 20,
-  },
-  icon: {
-    marginTop: 25,
-    width: 30,
-    height: 30,
-    resizeMode: "contain",
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginTop: 10,
-    width: "100%",
-    paddingHorizontal: 20,
   },
   imagePicker: {
     alignItems: 'center',
