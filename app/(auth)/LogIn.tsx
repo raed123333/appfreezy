@@ -190,7 +190,7 @@ const LogIn = () => {
         </View>
     
       </View>
-       <GoogleButton onPress={registerGoogle} /> 
+      <GoogleButton onPress={registerGoogle} /> 
       
     </ScrollView>
   );
