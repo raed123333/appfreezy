@@ -86,11 +86,14 @@ export default function FreezyCorpLayout() {
   const [refreshSubscription, setRefreshSubscription] = useState(0);
   const [showCustomAlert, setShowCustomAlert] = useState(false);
 
-  // Check if user has an active subscription - UPDATED
+  // FIXED: COMPLETELY REWRITTEN subscription check - now properly handles canceled but active subscriptions
   useEffect(() => {
     const checkUserSubscription = async () => {
       try {
+        console.log("🔍 Layout - Checking subscription for user:", user ? "User exists" : "No user");
+        
         if (!user) {
+          console.log("❌ Layout - No user found - setting hasActiveSubscription to false");
           setHasActiveSubscription(false);
           return;
         }
@@ -98,33 +101,14 @@ export default function FreezyCorpLayout() {
         const token = user?.token || user?.utilisateur?.token || null;
         
         if (!token) {
+          console.log("❌ Layout - No token available - setting hasActiveSubscription to false");
           setHasActiveSubscription(false);
           return;
         }
 
-        // Fetch user's active subscriptions
-        const response = await fetch(`${API}/payment/active-subscriptions`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const subscriptions = await response.json();
-          
-          // Check if user has any active subscriptions with correct status
-          const hasActiveSub = Array.isArray(subscriptions) && subscriptions.length > 0 && 
-                             subscriptions.some((sub: any) => 
-                               sub.isActive === true && 
-                               ['succeeded', 'active', 'paid'].includes(sub.status)
-                             );
-          
-          setHasActiveSubscription(hasActiveSub);
-        } else {
-          // Fallback to payment history
-          const paymentResponse = await fetch(`${API}/payment/history`, {
+        // Method 1: Check active subscriptions endpoint - UPDATED LOGIC
+        try {
+          const response = await fetch(`${API}/payment/active-subscriptions`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -132,37 +116,110 @@ export default function FreezyCorpLayout() {
             }
           });
 
-          if (paymentResponse.ok) {
-            const payments = await paymentResponse.json();
+          if (response.ok) {
+            const subscriptions = await response.json();
+            console.log("📋 Layout - Active subscriptions:", subscriptions);
             
-            // Check if user has any successful payments
-            const hasSucceededPayments = payments.some((payment: any) => 
-              ['succeeded', 'active', 'paid', 'completed'].includes(payment.status) &&
-              payment.isActive === true
-            );
+            // UPDATED: Check if there's at least one active subscription (including canceled but still active ones)
+            const hasActiveSub = Array.isArray(subscriptions) && subscriptions.length > 0 && 
+                               subscriptions.some((sub: any) => {
+                                 const isActive = sub.isActive === true;
+                                 const hasValidStatus = ['succeeded', 'active', 'paid', 'active_until_period_end'].includes(sub.status);
+                                 const isNotExpired = !sub.subscriptionEndDate || new Date(sub.subscriptionEndDate) > new Date();
+                                 
+                                 console.log(`🔍 Layout - Subscription ${sub.subscriptionId}:`, {
+                                   isActive,
+                                   status: sub.status,
+                                   isCanceled: sub.isCanceled,
+                                   subscriptionEndDate: sub.subscriptionEndDate,
+                                   isNotExpired,
+                                   isValid: isActive && hasValidStatus && isNotExpired
+                                 });
+                                 
+                                 return isActive && hasValidStatus && isNotExpired;
+                               });
             
-            setHasActiveSubscription(hasSucceededPayments);
+            console.log("✅ Layout - Has active subscription (including canceled but active):", hasActiveSub);
+            setHasActiveSubscription(hasActiveSub);
+            
+            // If we found active subscriptions, we're done
+            if (hasActiveSub) {
+              return;
+            }
           } else {
+            console.log("❌ Layout - Active subscriptions response not OK:", response.status);
+          }
+        } catch (error) {
+          console.log("⚠️ Layout - Active subscriptions endpoint failed, trying payment history:", error);
+        }
+
+        // Method 2: Check payment history as fallback - UPDATED LOGIC
+        try {
+          const response = await fetch(`${API}/payment/history`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (response.ok) {
+            const payments = await response.json();
+            console.log("💰 Layout - Payment history entries:", payments?.length || 0);
+
+            // UPDATED: Check for any successful payment that is still valid (including canceled but active)
+            const hasValidPayment = payments?.some((payment: any) => {
+              const hasValidStatus = ['succeeded', 'active', 'paid', 'completed', 'active_until_period_end'].includes(payment.status);
+              const isActive = payment.isActive === true;
+              const isNotExpired = !payment.dateFin || new Date(payment.dateFin) > new Date();
+              
+              console.log(`💰 Layout - Payment ${payment.idpay}:`, {
+                status: payment.status,
+                isActive: payment.isActive,
+                isCanceled: payment.isCanceled,
+                dateFin: payment.dateFin,
+                isNotExpired,
+                isValid: hasValidStatus && isActive && isNotExpired
+              });
+              
+              return hasValidStatus && isActive && isNotExpired;
+            });
+
+            console.log("✅ Layout - Has valid payment (including canceled but active):", hasValidPayment);
+            setHasActiveSubscription(hasValidPayment);
+          } else {
+            console.log("❌ Layout - Payment history response not OK:", response.status);
             setHasActiveSubscription(false);
           }
+        } catch (error) {
+          console.error("❌ Layout - Error checking payment history:", error);
+          setHasActiveSubscription(false);
         }
       } catch (error) {
-        console.error("Error checking subscription:", error);
+        console.error("❌ Layout - Error in subscription check:", error);
         setHasActiveSubscription(false);
+      } finally {
+        console.log("🎯 Layout - Final hasActiveSubscription:", hasActiveSubscription);
       }
     };
 
     checkUserSubscription();
   }, [user, refreshSubscription]);
 
-  // Function to handle RendezVous tab press
+  // Function to handle RendezVous tab press - UPDATED LOGIC
   const handleRendezVousPress = (e: any) => {
+    console.log("🔄 Layout - RendezVous tab pressed, hasActiveSubscription:", hasActiveSubscription);
+    
     if (!hasActiveSubscription) {
-      // Prevent default navigation
+      // Prevent default navigation only if user has NO active subscription
+      console.log("🚫 Layout - Blocking navigation - no active subscription");
       e.preventDefault();
       
       // Show custom alert instead of native alert
       setShowCustomAlert(true);
+    } else {
+      console.log("✅ Layout - Allowing navigation - user has active subscription");
+      // If hasActiveSubscription is true (including canceled but active), allow navigation
     }
   };
 
@@ -179,6 +236,7 @@ export default function FreezyCorpLayout() {
 
   // Function to refresh subscription status (can be called from other components)
   const refreshSubscriptionStatus = () => {
+    console.log("🔄 Layout - Refreshing subscription status");
     setRefreshSubscription(prev => prev + 1);
   };
 
@@ -400,7 +458,7 @@ const styles = {
     fontWeight: 'bold',
     textAlign: 'center'
   },
-  alertButtonSecondaryText: {
+  alertButtonTextSecondary: {
     color: '#04D9E7'
   }
 };

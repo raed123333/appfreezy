@@ -34,6 +34,20 @@ const RendezVous = () => {
   const [appointmentToCancel, setAppointmentToCancel] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // helper: normalize status string to strip accents, underscores, spaces and lowercase
+  const normalizeStatus = (status?: string | null) => {
+    if (!status) return "";
+    try {
+      return status.toString()
+        .normalize('NFD') // decompose accents
+        .replace(/[\u0300-\u036f]/g, '') // remove diacritics
+        .replace(/[^a-z0-9]/gi, '') // remove non-alphanumeric
+        .toLowerCase();
+    } catch (e) {
+      return status.toString().toLowerCase().replace(/[^a-z0-9]/gi, '');
+    }
+  };
+
   // Function to show custom alert
   const showCustomAlertMessage = (title: string, message: string, type: string = 'info', onConfirm?: () => void, showCancel: boolean = false) => {
     setAlertConfig({
@@ -86,65 +100,31 @@ const RendezVous = () => {
     return token;
   };
 
-  // FIXED: Completely rewritten and simplified subscription check
+  // FIXED: COMPLETELY REWRITTEN subscription check - SIMPLIFIED AND MORE RELIABLE
   useEffect(() => {
     const checkUserSubscription = async () => {
       try {
         setIsLoading(true);
-        console.log("Checking subscription for user:", user ? "User exists" : "No user");
+        console.log("🔄 Fetching data for user:", user ? "User exists" : "No user");
         
         if (!user) {
-          console.log("No user found - setting hasActiveSubscription to false");
+          console.log("❌ No user found - setting hasActiveSubscription to false");
           setHasActiveSubscription(false);
           setIsLoading(false);
           return;
         }
 
         const token = getToken();
-        console.log("Token available:", !!token);
+        console.log("🔑 Token available:", !!token);
 
         if (!token) {
-          console.log("No token available - setting hasActiveSubscription to false");
+          console.log("❌ No token available - setting hasActiveSubscription to false");
           setHasActiveSubscription(false);
           setIsLoading(false);
           return;
         }
 
-        // Method 1: Check active subscriptions endpoint
-        try {
-          const response = await fetch(`${API}/payment/active-subscriptions`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            }
-          });
-
-          if (response.ok) {
-            const subscriptions = await response.json();
-            console.log("Active subscriptions:", subscriptions);
-            
-            // Check if there's at least one active subscription
-            const hasActiveSub = Array.isArray(subscriptions) && subscriptions.length > 0 && 
-                               subscriptions.some((sub: any) => 
-                                 sub.isActive === true && 
-                                 ['succeeded', 'active', 'paid'].includes(sub.status)
-                               );
-            
-            console.log("Has active subscription:", hasActiveSub);
-            setHasActiveSubscription(hasActiveSub);
-            
-            // If we found active subscriptions, we're done
-            if (hasActiveSub) {
-              setIsLoading(false);
-              return;
-            }
-          }
-        } catch (error) {
-          console.log("Active subscriptions endpoint failed, trying payment history");
-        }
-
-        // Method 2: Check payment history as fallback
+        // Method 1: Try payment history first (more reliable)
         try {
           const response = await fetch(`${API}/payment/history`, {
             method: 'GET',
@@ -156,29 +136,101 @@ const RendezVous = () => {
 
           if (response.ok) {
             const payments = await response.json();
-            console.log("Payment history entries:", payments?.length || 0);
+            console.log("💰 Payment history entries:", payments?.length || 0);
 
-            // Check for any successful payment
-            const hasSuccessfulPayment = payments?.some((payment: any) => 
-              ['succeeded', 'active', 'paid', 'completed'].includes(payment.status) &&
-              payment.isActive === true
-            );
+            // SIMPLIFIED LOGIC: Check for any payment that is active and not expired
+            const hasValidPayment = payments?.some((payment: any) => {
+              const hasValidStatus = ['succeeded', 'active', 'paid', 'completed', 'active_until_period_end'].includes(payment.status);
+              const isActive = payment.isActive === true;
+              
+              // Check if dateFin is in the future
+              let isNotExpired = true;
+              if (payment.dateFin && payment.dateFin !== '0000-00-00') {
+                try {
+                  const endDate = new Date(payment.dateFin);
+                  isNotExpired = !isNaN(endDate.getTime()) && endDate > new Date();
+                } catch (e) {
+                  console.log("Invalid dateFin, considering as valid");
+                }
+              }
+              
+              const isValid = hasValidStatus && isActive && isNotExpired;
+              
+              if (isValid) {
+                console.log(`✅ Valid payment found: ${payment.idpay}`, {
+                  status: payment.status,
+                  isActive: payment.isActive,
+                  dateFin: payment.dateFin,
+                  isNotExpired
+                });
+              }
+              
+              return isValid;
+            });
 
-            console.log("Has successful payment:", hasSuccessfulPayment);
-            setHasActiveSubscription(hasSuccessfulPayment);
+            console.log("🎯 Final hasActiveSubscription from payments:", hasValidPayment);
+            setHasActiveSubscription(hasValidPayment);
+            
+            // If we found valid payments, we're done
+            if (hasValidPayment) {
+              setIsLoading(false);
+              return;
+            }
           } else {
-            console.log("Payment history response not OK:", response.status);
+            console.log("❌ Payment history response not OK:", response.status);
+          }
+        } catch (error) {
+          console.log("⚠️ Payment history endpoint failed:", error);
+        }
+
+        // Method 2: Fallback to active subscriptions endpoint
+        try {
+          const response = await fetch(`${API}/payment/active-subscriptions`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (response.ok) {
+            const subscriptions = await response.json();
+            console.log("📋 Active subscriptions found:", subscriptions?.length || 0);
+            
+            const hasActiveSub = Array.isArray(subscriptions) && subscriptions.length > 0 && 
+                               subscriptions.some((sub: any) => {
+                                 const isActive = sub.isActive === true;
+                                 const hasValidStatus = ['succeeded', 'active', 'paid', 'active_until_period_end'].includes(sub.status);
+                                 
+                                 let isNotExpired = true;
+                                 if (sub.dateFin && sub.dateFin !== '0000-00-00') {
+                                   try {
+                                     const endDate = new Date(sub.dateFin);
+                                     isNotExpired = !isNaN(endDate.getTime()) && endDate > new Date();
+                                   } catch (e) {
+                                     console.log("Invalid dateFin in subscription, considering as valid");
+                                   }
+                                 }
+                                 
+                                 return isActive && hasValidStatus && isNotExpired;
+                               });
+            
+            console.log("🎯 Final hasActiveSubscription from subscriptions:", hasActiveSub);
+            setHasActiveSubscription(hasActiveSub);
+          } else {
+            console.log("❌ Active subscriptions response not OK:", response.status);
             setHasActiveSubscription(false);
           }
         } catch (error) {
-          console.error("Error checking payment history:", error);
+          console.error("❌ Error checking active subscriptions:", error);
           setHasActiveSubscription(false);
         }
       } catch (error) {
-        console.error("Error in subscription check:", error);
+        console.error("❌ Error in subscription check:", error);
         setHasActiveSubscription(false);
       } finally {
         setIsLoading(false);
+        console.log("🎯 Final hasActiveSubscription state:", hasActiveSubscription);
       }
     };
 
@@ -188,19 +240,18 @@ const RendezVous = () => {
   // FIXED: Simplified data fetching
   useEffect(() => {
     const fetchData = async () => {
-      if (!hasActiveSubscription || isLoading) {
-        return;
-      }
-
-      const userId = getUserId();
-      const token = getToken();
-      
-      if (userId && token) {
-        console.log("Fetching data for user:", userId);
-        await fetchUserAppointments(userId);
-        await fetchAllAppointments();
-        await fetchHolidays();
-        await fetchInterventionLimits();
+      // Only fetch data if user has active subscription AND we're not loading
+      if (hasActiveSubscription && !isLoading) {
+        const userId = getUserId();
+        const token = getToken();
+        
+        if (userId && token) {
+          console.log("🔄 Fetching appointment data for user:", userId);
+          await fetchUserAppointments(userId);
+          await fetchAllAppointments();
+          await fetchHolidays();
+          await fetchInterventionLimits();
+        }
       }
     };
 
@@ -385,12 +436,21 @@ const RendezVous = () => {
   };
 
   const handleDatePress = (day: any) => {
-    if (!hasActiveSubscription) {
+    if (!hasActiveSubscription && !isLoading) {
       showCustomAlertMessage(
         "Abonnement Requis",
-        "Acheter un offre pour avant chose un rendez-vous",
+        "Vous devez avoir un abonnement actif pour prendre un rendez-vous.",
         'info',
         () => router.navigate('/OurOffers')
+      );
+      return;
+    }
+
+    if (isLoading) {
+      showCustomAlertMessage(
+        "Chargement",
+        "Vérification de votre abonnement en cours...",
+        'info'
       );
       return;
     }
@@ -407,12 +467,21 @@ const RendezVous = () => {
   };
 
   const handleAddReservation = async () => {
-    if (!hasActiveSubscription) {
+    if (!hasActiveSubscription && !isLoading) {
       showCustomAlertMessage(
         "Abonnement Requis",
-        "Acheter un offre pour avant chose un rendez-vous",
+        "Vous devez avoir un abonnement actif pour prendre un rendez-vous.",
         'info',
         () => router.navigate('/OurOffers')
+      );
+      return;
+    }
+
+    if (isLoading) {
+      showCustomAlertMessage(
+        "Chargement",
+        "Vérification de votre abonnement en cours...",
+        'info'
       );
       return;
     }
@@ -477,7 +546,9 @@ const RendezVous = () => {
     }
 
     preBookedDates.forEach(item => {
-      if (item.statusAppoi === 'Non_confirmé' || item.statusAppoi === 'confirmé') {
+      const ns = normalizeStatus(item.statusAppoi);
+      // mark dates if confirmed or non-confirmed (normalized)
+      if (ns === 'nonconfirme' || ns === 'confirme' || ns === 'confirmed') {
         markedDates[item.date] = { disabled: true, marked: true, dotColor: "red" };
       }
     });
@@ -504,14 +575,19 @@ const RendezVous = () => {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "confirmé":
+    const ns = normalizeStatus(status);
+    switch (ns) {
+      case "confirme":
+      case "confirmed":
         return "green";
-      case "Non_confirmé":
+      case "nonconfirme":
+      case "nonconfirmed":
         return "orange";
-      case "annulé":
+      case "annule":
+      case "annulee":
         return "red";
-      case "effectué":
+      case "effectue":
+      case "effectuee":
         return "blue";
       default:
         return "#828282";
@@ -533,7 +609,7 @@ const RendezVous = () => {
         <View style={styles.limitCard}>
           <Text style={styles.limitTitle}>Abonnement Requis</Text>
           <Text style={styles.limitError}>
-            Vous devez acheter une offre pour prendre un rendez-vous
+            Vous devez avoir un abonnement actif pour prendre un rendez-vous
           </Text>
           <TouchableOpacity
             style={styles.subscriptionButton}
@@ -693,33 +769,37 @@ const RendezVous = () => {
                 <Text style={styles.secondecardTitle}>Mes Rendez-vous</Text>
                 {preBookedDates.length > 0 ? (
                   preBookedDates
-                    .map((item, index) => (
-                      <View style={styles.appointmentItem} key={item.idAppoin}>
-                        <View style={styles.appointmentInfo}>
-                          <Text style={styles.titlechiffre}>Réservation #{index + 1}</Text>
-                          <Text style={styles.historique}>{item.date}, {item.time}</Text>
-                          <Text style={[styles.statusText, { color: getStatusColor(item.statusAppoi) }]}>
-                            Statut: {item.statusAppoi}
-                          </Text>
+                    .map((item, index) => {
+                      const ns = normalizeStatus(item.statusAppoi);
+
+                      return (
+                        <View style={styles.appointmentItem} key={item.idAppoin}>
+                          <View style={styles.appointmentInfo}>
+                            <Text style={styles.titlechiffre}>Réservation #{index + 1}</Text>
+                            <Text style={styles.historique}>{item.date}, {item.time}</Text>
+                            <Text style={[styles.statusText, { color: getStatusColor(item.statusAppoi) }]}>
+                              Statut: {item.statusAppoi}
+                            </Text>
+                          </View>
+
+                          {/* MODIFICATION: Show cancel button only when status is non-confirmed */}
+                          {/* For confirmed status, show only the status badge without any button - just like effectue status */}
+                          {ns.startsWith('non') ? (
+                            <TouchableOpacity 
+                              style={styles.cancelButton}
+                              onPress={() => showCancelConfirmation(item.idAppoin)}
+                            >
+                              <Text style={styles.cancelText}>Annuler</Text>
+                            </TouchableOpacity>
+                          ) : (ns.includes('confirmé')||ns.includes('confirme') || ns.includes('confirmed')) && !ns.includes('effectue') && !ns.includes('confirmé') ? (
+                            <View style={styles.confirmedBadge}>
+                              <Text style={styles.confirmedText}>Confirmé</Text>
+                            </View>
+                          ) : null}
+                          {/* For effectuee and conformie status, no button is shown - just the status text */}
                         </View>
-                        {item.statusAppoi === "Non_confirmé" ? (
-                          <TouchableOpacity 
-                            style={styles.cancelButton}
-                            onPress={() => showCancelConfirmation(item.idAppoin)}
-                          >
-                            <Text style={styles.cancelText}>Annuler</Text>
-                          </TouchableOpacity>
-                        ) : item.statusAppoi === "confirmé" ? (
-                          <View style={styles.confirmedBadge}>
-                            <Text style={styles.confirmedText}>Confirmé</Text>
-                          </View>
-                        ) : item.statusAppoi === "effectué" ? (
-                          <View style={[styles.confirmedBadge, { backgroundColor: "blue" }]}>
-                            <Text style={styles.confirmedText}>Effectué</Text>
-                          </View>
-                        ) : null}
-                      </View>
-                    ))
+                      );
+                    })
                 ) : (
                   <Text style={styles.historique}>Aucun rendez-vous prévu</Text>
                 )}
@@ -937,7 +1017,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold'
   },
   confirmedBadge: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6

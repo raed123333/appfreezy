@@ -6,7 +6,8 @@ import { Image, StyleSheet, TouchableOpacity } from "react-native";
 const GoogleButton = ({ onPress }: any) => {
   useEffect(() => {
     GoogleSignin.configure({
-      webClientId: WEB_CLIENT_ID
+      webClientId: WEB_CLIENT_ID,
+      scopes: ['https://www.googleapis.com/auth/userinfo.profile'] // Added profile scope
     });
   }, []);
 
@@ -24,7 +25,7 @@ const GoogleButton = ({ onPress }: any) => {
   return (
     <TouchableOpacity style={styles.button} onPress={signin} activeOpacity={0.8}>
       <Image
-        source={require("@/assets/google.png")} // 👈 your PNG file path
+        source={require("@/assets/google.png")}
         style={styles.image}
         resizeMode="contain"
       />
@@ -40,10 +41,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
- 
   },
   image: {
-    width: 180, // adjust as needed
+    width: 180,
     height: 40,
   },
 });

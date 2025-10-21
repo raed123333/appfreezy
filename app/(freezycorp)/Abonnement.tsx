@@ -1,9 +1,9 @@
-import { Link, router, useFocusEffect } from "expo-router";
+import { API } from "@/config";
+import { Link, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Dimensions, Image, ImageBackground, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import PDFService from '../services/PDFService';
-import { API } from "@/config";
 
 const { width, height } = Dimensions.get("window");
 
@@ -13,12 +13,14 @@ interface Subscription {
   subscriptionId: string;
   status: string;
   isActive: boolean;
+  isCanceled: boolean;
   nextBillingDate: string;
+  subscriptionEndDate: string;
   offreId: number;
   amount: number;
   createdAt: string;
   updatedAt: string;
-  dateFin: string; // Added this field
+  dateFin: string;
 }
 
 // Define the Payment interface
@@ -39,7 +41,23 @@ interface Payment {
   dateFin: string;
   createdAt: string;
   updatedAt: string;
+  isCanceled: boolean;
+  subscriptionEndDate: string;
 }
+
+// Safe date validation function
+const isValidDate = (dateStr: string): boolean => {
+  if (!dateStr) return false;
+  if (dateStr === '0000-00-00' || dateStr === '0000-00-00 00:00:00') return false;
+  const date = new Date(dateStr);
+  return !isNaN(date.getTime());
+};
+
+// Safe date creation function
+const safeCreateDate = (dateStr: string): Date => {
+  if (!isValidDate(dateStr)) return new Date();
+  return new Date(dateStr);
+};
 
 const Abonnement = () => {
   const { user, logout } = useAuth();
@@ -95,47 +113,122 @@ const Abonnement = () => {
     return null;
   };
 
-  // Fetch active subscription - using same logic as OurOffers
+  // FIXED: Improved active subscription fetch with better error handling and fallback
   const fetchActiveSubscription = async (): Promise<void> => {
     try {
       const token = getAuthToken();
       if (!token) {
+        console.log("❌ No token available");
         setActiveSubscription(null);
         return;
       }
 
-      const response = await fetch(`${API}/payment/active-subscriptions`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      console.log("🔄 Fetching active subscriptions...");
 
-      if (response.ok) {
-        const subscriptions = await response.json();
-        
-        if (Array.isArray(subscriptions) && subscriptions.length > 0) {
-          // Get the latest active subscription with correct status - same logic as OurOffers
-          const latestActiveSubscription = subscriptions.find((sub: Subscription) => 
-            sub.isActive === true && 
-            ['succeeded', 'active', 'paid'].includes(sub.status)
-          ) || subscriptions[0];
+      // First try the active-subscriptions endpoint
+      try {
+        const response = await fetch(`${API}/payment/active-subscriptions`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const subscriptions = await response.json();
+          console.log("📋 Active subscriptions response:", subscriptions);
           
-          setActiveSubscription(latestActiveSubscription);
+          if (Array.isArray(subscriptions) && subscriptions.length > 0) {
+            // Find the first active subscription
+            const activeSub = subscriptions.find((sub: Subscription) => 
+              sub.isActive === true && 
+              ['succeeded', 'active', 'paid', 'active_until_period_end'].includes(sub.status)
+            );
+
+            if (activeSub) {
+              console.log("✅ Found active subscription:", activeSub);
+              setActiveSubscription(activeSub);
+              return;
+            } else {
+              console.log("⚠️ No active subscription found in array");
+            }
+          } else {
+            console.log("📭 No subscriptions array or empty array");
+          }
         } else {
-          setActiveSubscription(null);
+          console.log("❌ Active subscriptions endpoint failed:", response.status);
         }
-      } else {
-        setActiveSubscription(null);
+      } catch (error) {
+        console.log("⚠️ Active subscriptions endpoint error:", error);
       }
+
+      // Fallback: Check payment history for active subscriptions
+      console.log("🔄 Falling back to payment history check...");
+      try {
+        const paymentResponse = await fetch(`${API}/payment/history`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (paymentResponse.ok) {
+          const payments: Payment[] = await paymentResponse.json();
+          console.log("💰 Payment history entries:", payments?.length || 0);
+
+          // Find the most recent active payment
+          const activePayment = payments.find((payment: Payment) => {
+            const hasValidStatus = ['succeeded', 'active', 'paid', 'completed', 'active_until_period_end'].includes(payment.status);
+            const isActive = payment.isActive === true;
+            
+            // Check if dateFin is valid and in the future
+            let isNotExpired = true;
+            if (isValidDate(payment.dateFin)) {
+              const endDate = safeCreateDate(payment.dateFin);
+              isNotExpired = endDate > new Date();
+            }
+            
+            return hasValidStatus && isActive && isNotExpired;
+          });
+
+          if (activePayment) {
+            console.log("✅ Found active payment to use as subscription:", activePayment);
+            // Convert payment to subscription format
+            const subscriptionFromPayment: Subscription = {
+              id: activePayment.idpay,
+              subscriptionId: activePayment.paymentIntentId || activePayment.idpay.toString(),
+              status: activePayment.status,
+              isActive: activePayment.isActive,
+              isCanceled: activePayment.isCanceled,
+              nextBillingDate: activePayment.dateFin,
+              subscriptionEndDate: activePayment.subscriptionEndDate || activePayment.dateFin,
+              offreId: activePayment.offreId || 1,
+              amount: activePayment.amount,
+              createdAt: activePayment.createdAt,
+              updatedAt: activePayment.updatedAt,
+              dateFin: activePayment.dateFin
+            };
+            setActiveSubscription(subscriptionFromPayment);
+            return;
+          }
+        }
+      } catch (error) {
+        console.log("❌ Payment history fallback failed:", error);
+      }
+
+      // If we get here, no active subscription found
+      console.log("❌ No active subscription found");
+      setActiveSubscription(null);
+
     } catch (error) {
-      console.error("Error fetching subscription data:", error);
+      console.error("❌ Error fetching subscription data:", error);
       setActiveSubscription(null);
     }
   };
 
-  // Fetch payment history
+  // UPDATED: Fetch ALL payment history (including old offers and canceled subscriptions)
   const fetchPaymentHistory = async (): Promise<void> => {
     try {
       const token = getAuthToken();
@@ -158,12 +251,12 @@ const Abonnement = () => {
           return;
         }
         
-        const succeededPayments = payments.filter(payment => 
-          payment.status === 'succeeded' || payment.status === 'completed'
-        );
+        // UPDATED: Show ALL payments regardless of status
+        setPaymentHistory(payments);
         
-        setPaymentHistory(succeededPayments);
+        console.log("All payment history loaded:", payments.length, "payments");
       } else {
+        console.error("Failed to fetch payment history:", response.status);
         setPaymentHistory([]);
       }
     } catch (error) {
@@ -222,20 +315,52 @@ const Abonnement = () => {
   const getOffreName = (offreId: number | null): string => {
     const offreNames: { [key: number]: string } = {
       1: "Mensuelle",
-      3: "Real offres", // Changed from "Trimestrielle" to "Real offres"
+      3: "Real offres",
       6: "Semestrielle",
       12: "Annuelle"
     };
     return offreId ? (offreNames[offreId] || "Mensuelle") : "Mensuelle";
   };
 
+  // UPDATED: Get payment status display text
+  const getPaymentStatusText = (status: string): string => {
+    const statusMap: { [key: string]: string } = {
+      'succeeded': 'Payé',
+      'completed': 'Complété',
+      'active': 'Actif',
+      'active_until_period_end': 'Actif jusqu\'à fin période',
+      'canceled': 'Annulé',
+      'failed': 'Échoué',
+      'pending': 'En attente',
+      'setup_required': 'Configuration requise',
+      'incomplete': 'Incomplet',
+      'past_due': 'En retard'
+    };
+    return statusMap[status] || status;
+  };
+
+  // UPDATED: Get payment status color
+  const getPaymentStatusColor = (status: string): string => {
+    const statusColorMap: { [key: string]: string } = {
+      'succeeded': '#4CAF50',
+      'completed': '#4CAF50',
+      'active': '#4CAF50',
+      'active_until_period_end': '#FF9800',
+      'canceled': '#F44336',
+      'failed': '#F44336',
+      'pending': '#FFC107',
+      'setup_required': '#FFC107',
+      'incomplete': '#FFC107',
+      'past_due': '#F44336'
+    };
+    return statusColorMap[status] || '#828282';
+  };
+
   const formatDate = (dateString: string): string => {
-    if (!dateString) return "Date non disponible";
+    if (!isValidDate(dateString)) return "Date non disponible";
     
     try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return "Date invalide";
-      
+      const date = safeCreateDate(dateString);
       const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
       return date.toLocaleDateString('fr-FR', options);
     } catch (error) {
@@ -243,87 +368,72 @@ const Abonnement = () => {
     }
   };
 
-  // FIXED FUNCTION: Get the correct next billing date
-  const getNextBillingDate = (): string => {
+  // UPDATED FUNCTION: Get the subscription end date for display
+  const getSubscriptionEndDate = (): string => {
     if (!activeSubscription) {
       return "Non disponible";
     }
     
     try {
-      // Priority 1: Use nextBillingDate from Stripe webhook (most accurate)
-      if (activeSubscription.nextBillingDate) {
-        const nextDate = new Date(activeSubscription.nextBillingDate);
-        if (!isNaN(nextDate.getTime())) {
-          return formatDate(activeSubscription.nextBillingDate);
-        }
+      // Priority 1: Use subscriptionEndDate (the actual end date)
+      if (isValidDate(activeSubscription.subscriptionEndDate)) {
+        return formatDate(activeSubscription.subscriptionEndDate);
       }
       
-      // Priority 2: Use dateFin from database (subscription end date)
-      if (activeSubscription.dateFin) {
-        const endDate = new Date(activeSubscription.dateFin);
-        if (!isNaN(endDate.getTime())) {
-          return formatDate(activeSubscription.dateFin);
-        }
+      // Priority 2: Use dateFin from database
+      if (isValidDate(activeSubscription.dateFin)) {
+        return formatDate(activeSubscription.dateFin);
       }
       
-      // Priority 3: Calculate based on subscription creation and duration
-      const createdAt = new Date(activeSubscription.createdAt);
-      if (!isNaN(createdAt.getTime())) {
-        const offreDuration = activeSubscription.offreId || 1;
-        const nextBilling = new Date(createdAt);
-        nextBilling.setMonth(nextBilling.getMonth() + offreDuration);
-        return formatDate(nextBilling.toISOString());
+      // Priority 3: Use nextBillingDate as fallback
+      if (isValidDate(activeSubscription.nextBillingDate)) {
+        return formatDate(activeSubscription.nextBillingDate);
       }
       
       return "Date non disponible";
       
     } catch (error) {
-      console.error("Error calculating next billing date:", error);
+      console.error("Error calculating subscription end date:", error);
       return "Date invalide";
     }
   };
 
-  // FIXED FUNCTION: Get days until next billing
-  const getDaysUntilNextBilling = (): number => {
+  // UPDATED FUNCTION: Get days until subscription end
+  const getDaysUntilSubscriptionEnd = (): number => {
     if (!activeSubscription) return 0;
     
     try {
-      let nextBillingDate: Date | null = null;
+      let endDate: Date | null = null;
       
-      // Try to get date from nextBillingDate field
-      if (activeSubscription.nextBillingDate) {
-        nextBillingDate = new Date(activeSubscription.nextBillingDate);
+      // Try to get date from subscriptionEndDate field
+      if (isValidDate(activeSubscription.subscriptionEndDate)) {
+        endDate = safeCreateDate(activeSubscription.subscriptionEndDate);
       }
       
       // If not available, try dateFin
-      if ((!nextBillingDate || isNaN(nextBillingDate.getTime())) && activeSubscription.dateFin) {
-        nextBillingDate = new Date(activeSubscription.dateFin);
+      if (!endDate && isValidDate(activeSubscription.dateFin)) {
+        endDate = safeCreateDate(activeSubscription.dateFin);
       }
       
-      // If still not available, calculate from creation date
-      if (!nextBillingDate || isNaN(nextBillingDate.getTime())) {
-        const createdAt = new Date(activeSubscription.createdAt);
-        if (!isNaN(createdAt.getTime())) {
-          const offreDuration = activeSubscription.offreId || 1;
-          nextBillingDate = new Date(createdAt);
-          nextBillingDate.setMonth(nextBillingDate.getMonth() + offreDuration);
-        }
+      // If still not available, use nextBillingDate
+      if (!endDate && isValidDate(activeSubscription.nextBillingDate)) {
+        endDate = safeCreateDate(activeSubscription.nextBillingDate);
       }
       
-      if (!nextBillingDate || isNaN(nextBillingDate.getTime())) return 0;
+      if (!endDate) return 0;
       
       const today = new Date();
-      const timeDiff = nextBillingDate.getTime() - today.getTime();
+      const timeDiff = endDate.getTime() - today.getTime();
       const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
       
       return daysDiff > 0 ? daysDiff : 0;
     } catch (error) {
-      console.error("Error calculating days until next billing:", error);
+      console.error("Error calculating days until subscription end:", error);
       return 0;
     }
   };
 
-  // Cancel subscription function - using same logic as OurOffers
+  // Cancel subscription function - using updated logic
   const handleCancelSubscription = async (): Promise<void> => {
     try {
       const token = getAuthToken();
@@ -349,7 +459,7 @@ const Abonnement = () => {
       if (response.status === 200) {
         showCustomAlertMessage(
           "Abonnement annulé",
-          "Votre abonnement a été annulé avec succès. Aucun paiement futur ne sera effectué.",
+          "Votre abonnement a été annulé avec succès. Il restera actif jusqu'à la fin de la période déjà payée. Aucun paiement futur ne sera effectué.",
           () => {
             // Refresh the data after cancellation
             fetchUserSubscriptionData();
@@ -383,11 +493,26 @@ const Abonnement = () => {
     );
   };
 
-  // Check if subscription is active
+  // UPDATED: Check if subscription is active (including canceled but still active subscriptions)
   const isSubscriptionActive = (): boolean => {
-    return activeSubscription !== null && 
-           activeSubscription.isActive && 
-           ['succeeded', 'active', 'paid'].includes(activeSubscription.status);
+    if (!activeSubscription) return false;
+    
+    const hasValidStatus = ['succeeded', 'active', 'paid', 'active_until_period_end'].includes(activeSubscription.status);
+    const isActive = activeSubscription.isActive === true;
+    
+    // Check if dateFin is valid and in the future
+    let isNotExpired = true;
+    if (isValidDate(activeSubscription.dateFin)) {
+      const endDate = safeCreateDate(activeSubscription.dateFin);
+      isNotExpired = endDate > new Date();
+    }
+    
+    return hasValidStatus && isActive && isNotExpired;
+  };
+
+  // NEW: Check if subscription is canceled but still active
+  const isSubscriptionCanceledButActive = (): boolean => {
+    return isSubscriptionActive() && activeSubscription!.isCanceled === true;
   };
 
   if (loading) {
@@ -492,6 +617,14 @@ const Abonnement = () => {
             <Text style={styles.firstcardTitle}>
               {isSubscriptionActive() ? getOffreName(activeSubscription!.offreId) : "Aucun abonnement actif"}
             </Text>
+            
+            {/* Show cancellation status */}
+            {isSubscriptionCanceledButActive() && (
+              <View style={styles.canceledBadge}>
+                <Text style={styles.canceledBadgeText}>Annulé - Actif jusqu'à la fin de la période</Text>
+              </View>
+            )}
+            
             <View style={styles.firstcardLine} />
             <View style={styles.priceRow}>
               <Text style={styles.priceNumber}>
@@ -502,29 +635,29 @@ const Abonnement = () => {
               </Text>
             </View>
             
-            {/* Next billing date button - FIXED */}
+            {/* UPDATED: Subscription status message */}
             <TouchableOpacity style={styles.firstcardButton}>
               <Text style={styles.cardButtonText}>
-                Prochaine facturation{"\n"}
+                {isSubscriptionCanceledButActive() ? "Votre abonnement reste actif jusqu'au" : "Prochaine facturation"}{"\n"}
                 <Text style={styles.nextBillingDate}>
-                  {isSubscriptionActive() ? getNextBillingDate() : "Non disponible"}
+                  {isSubscriptionActive() ? getSubscriptionEndDate() : "Non disponible"}
                 </Text>
-                {isSubscriptionActive() && getDaysUntilNextBilling() > 0 && (
+                {isSubscriptionActive() && getDaysUntilSubscriptionEnd() > 0 && (
                   <Text style={styles.daysRemaining}>
-                    {"\n"}Dans {getDaysUntilNextBilling()} jour(s)
+                    {"\n"}Dans {getDaysUntilSubscriptionEnd()} jour(s)
                   </Text>
                 )}
               </Text>
             </TouchableOpacity>
 
-            {/* Cancel subscription button - Only show when user has an active subscription */}
-            {isSubscriptionActive() && (
+            {/* Cancel subscription button - Only show when user has an active, non-canceled subscription */}
+            {isSubscriptionActive() && !isSubscriptionCanceledButActive() && (
               <TouchableOpacity 
                 style={styles.cancelSubscriptionButton}
                 onPress={() => 
                   showCustomAlertMessage(
                     "Annuler l'abonnement",
-                    "Êtes-vous sûr de vouloir annuler votre abonnement ? Les paiements automatiques seront arrêtés et vous ne serez plus facturé.",
+                    "Êtes-vous sûr de vouloir annuler votre abonnement ? Votre abonnement restera actif jusqu'à la fin de la période déjà payée. Aucun paiement futur ne sera effectué.",
                     handleCancelSubscription,
                     () => console.log("Cancel subscription cancelled")
                   )
@@ -535,40 +668,79 @@ const Abonnement = () => {
                 </Text>
               </TouchableOpacity>
             )}
+
+            {/* Show message if subscription is already canceled */}
+            {isSubscriptionCanceledButActive() && (
+              <View style={styles.canceledMessage}>
+                <Text style={styles.canceledMessageText}>
+                  Votre abonnement a été annulé mais reste actif jusqu'à la fin de la période.
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Second Card - Payment History */}
           <View style={styles.secondecard}>
-            <Text style={styles.secondecardTitle}>Historique</Text>
+            <Text style={styles.secondecardTitle}>Historique des paiements</Text>
+            
+            {/* UPDATED: Show total count of payments */}
+            <Text style={styles.paymentCountText}>
+              {paymentHistory.length} paiement(s) au total
+            </Text>
 
             {paymentHistory.length > 0 ? (
               paymentHistory.map((payment, index) => (
-                <View style={styles.specialbuttonRow} key={payment.idpay || index}>
-                  <View style={styles.paymentInfo}>
-                    <Text style={styles.titlechiffre}>Transaction #{payment.idpay || index + 1}</Text> 
-                    <Text style={styles.historique}>
-                      {formatDate(payment.createdAt)} - {getOffreName(payment.offreId)}
-                    </Text>
+                <View style={styles.paymentItem} key={payment.idpay || index}>
+                  <View style={styles.paymentHeader}>
+                    <View style={styles.paymentInfo}>
+                      <Text style={styles.titlechiffre}>
+                        Transaction #{payment.idpay || index + 1} - {getOffreName(payment.offreId)}
+                      </Text> 
+                      <Text style={styles.historique}>
+                        {formatDate(payment.createdAt)}
+                      </Text>
+                    </View>
+                    <Text style={styles.money}>{payment.amount} CHF</Text>
                   </View>
-                  <Text style={styles.money}>{payment.amount} CHF</Text>
-
-                  <TouchableOpacity 
-                    style={styles.downloadWrapper}
-                    onPress={() => handleDownloadPDF(payment)}
-                    disabled={downloadingId === payment.idpay}
-                  >
-                    {downloadingId === payment.idpay ? (
-                      <ActivityIndicator size="small" color="#04D9E7" />
-                    ) : (
-                      <>
-                        <View style={styles.squareDownload} />
-                        <Image
-                          source={require("../../assets/images/IconDownload.png")}                          
-                          style={styles.iconDownload}
-                        />
-                      </>
+                  
+                  {/* UPDATED: Show payment status */}
+                  <View style={styles.paymentStatusRow}>
+                    <View style={[styles.statusBadge, { backgroundColor: getPaymentStatusColor(payment.status) }]}>
+                      <Text style={styles.statusText}>
+                        {getPaymentStatusText(payment.status)}
+                      </Text>
+                    </View>
+                    
+                    {/* UPDATED: Show download button for successful payments AND active_until_period_end status */}
+                    {(payment.status === 'succeeded' || payment.status === 'completed' || payment.status === 'active' || payment.status === 'active_until_period_end') && (
+                      <TouchableOpacity 
+                        style={styles.downloadWrapper}
+                        onPress={() => handleDownloadPDF(payment)}
+                        disabled={downloadingId === payment.idpay}
+                      >
+                        {downloadingId === payment.idpay ? (
+                          <ActivityIndicator size="small" color="#04D9E7" />
+                        ) : (
+                          <>
+                            <View style={styles.squareDownload} />
+                            <Image
+                              source={require("../../assets/images/IconDownload.png")}                          
+                              style={styles.iconDownload}
+                            />
+                          </>
+                        )}
+                      </TouchableOpacity>
                     )}
-                  </TouchableOpacity>
+                  </View>
+                  
+                  {/* Show additional info for canceled subscriptions */}
+                  {payment.isCanceled && (
+                    <View style={styles.canceledInfo}>
+                      <Text style={styles.canceledInfoText}>
+                        ✓ Abonnement annulé - Période payée honorée
+                      </Text>
+                    </View>
+                  )}
                 </View>
               ))
             ) : (
@@ -635,6 +807,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 4,
     marginTop: 20,
+    position: 'relative',
   },
   firstcardTitle: { 
     fontSize: width * 0.05, 
@@ -665,7 +838,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold", 
     textAlign: "center" 
   },
-  // NEW STYLES for next billing date display
   nextBillingDate: {
     fontSize: width * 0.04,
     fontWeight: "bold",
@@ -725,6 +897,13 @@ const styles = StyleSheet.create({
     marginBottom: 10, 
     textAlign: "center" 
   },
+  paymentCountText: {
+    fontSize: width * 0.035,
+    color: "#828282",
+    textAlign: "center",
+    marginBottom: 15,
+    fontStyle: "italic",
+  },
   titlechiffre: { 
     fontSize: width * 0.03, 
     fontWeight: "bold", 
@@ -740,27 +919,76 @@ const styles = StyleSheet.create({
     fontSize: width * 0.04, 
     color: "#080808", 
     marginTop: 1, 
-    marginLeft: 20 
+    marginLeft: 20,
+    fontWeight: "bold",
+  },
+  paymentItem: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  paymentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  paymentStatusRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 5,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    minWidth: 80,
+  },
+  statusText: {
+    color: "#FFFFFF",
+    fontSize: width * 0.025,
+    fontWeight: "bold",
+    textAlign: "center",
   },
   downloadWrapper: { 
-    width: 80, 
-    height: 80, 
+    width: 60, 
+    height: 40, 
     justifyContent: "center", 
     alignItems: "center", 
     position: "relative" 
   },
-  // Replaced rectangleDownload with squareDownload
   squareDownload: { 
-    width: 40, 
-    height: 40, 
+    width: 35, 
+    height: 35, 
     backgroundColor: "#080808",
-    borderRadius: 4, // Optional: slightly rounded corners for better appearance
+    borderRadius: 4,
   },
   iconDownload: { 
     position: "absolute", 
-    width: 20, 
-    height: 20, 
+    width: 18, 
+    height: 18, 
     resizeMode: "contain" 
+  },
+  canceledInfo: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: "rgba(255, 165, 0, 0.1)",
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: "#FFA500",
+  },
+  canceledInfoText: {
+    fontSize: width * 0.025,
+    color: "#FFA500",
+    fontWeight: "500",
   },
   loadingContainer: {
     flex: 1,
@@ -779,7 +1007,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20
   },
-  // Cancel subscription button styles
   cancelSubscriptionButton: {
     width: width * 0.8,
     backgroundColor: "#FF3B30",
@@ -794,7 +1021,32 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  // Custom Alert Styles
+  canceledBadge: {
+    backgroundColor: '#FFA500',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    marginBottom: 10,
+  },
+  canceledBadgeText: {
+    color: '#FFFFFF',
+    fontSize: width * 0.03,
+    fontWeight: 'bold',
+  },
+  canceledMessage: {
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#FFA500',
+  },
+  canceledMessageText: {
+    color: '#FFA500',
+    fontSize: width * 0.03,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

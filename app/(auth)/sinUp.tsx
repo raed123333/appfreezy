@@ -263,7 +263,7 @@ const sinUp = () => {
           </Link>
         </View>
       </View>
-      <GoogleButton onPress={registerGoogle} /> 
+      <GoogleButton onPress={registerGoogle} />
     </ScrollView>
   );
 };

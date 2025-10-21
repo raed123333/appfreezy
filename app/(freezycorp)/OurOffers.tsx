@@ -233,7 +233,7 @@ const OurOffersComponent = () => {
 
   const canPurchaseNewOffer = () => {
     if (!activeSubscription) {
-      console.log("No active subscription - can purchase");
+      console.log("Pas d'abonnement actif - possibilité d'achat");
       return true;
     }
 
@@ -253,7 +253,7 @@ const OurOffersComponent = () => {
     try {
       const token = getToken();
 
-      console.log("Creating subscription for:", {
+      console.log("Créer un abonnement pour:", {
         amount: price,
         description: `Abonnement: ${offreTitle} - ${getPeriodDisplayName(selectedPeriod)}`,
         offreId,
@@ -277,7 +277,7 @@ const OurOffersComponent = () => {
         }
       );
 
-      console.log("Subscription setup response:", response.data);
+      console.log("Réponse de configuration d'abonnement:", response.data);
 
       const { error: initError } = await initPaymentSheet({
         setupIntentClientSecret: response.data.clientSecret,
@@ -285,7 +285,7 @@ const OurOffersComponent = () => {
       });
 
       if (initError) {
-        console.error("Erreur initPaymentSheet:", initError.message);
+        console.error("Erreur dans la feuille de paiement:", initError.message);
         showCustomAlertMessage("Erreur", initError.message);
         return;
       }
@@ -306,7 +306,7 @@ const OurOffersComponent = () => {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        console.log("Subscription completed:", completeResponse.data);
+        console.log("Abonnement terminé:", completeResponse.data);
         
         // Refresh subscription data
         const subscriptionResponse = await fetch(`${API}/payment/active-subscriptions`, {
@@ -335,7 +335,7 @@ const OurOffersComponent = () => {
         }
       }
     } catch (err) {
-      console.error("Subscription process error:", err);
+      console.error("Erreur de processus d'abonnement:", err);
       if (err.response) {
         console.error("Backend error response:", err.response.data);
         showCustomAlertMessage("Erreur", err.response.data.error || "Erreur lors de la souscription");

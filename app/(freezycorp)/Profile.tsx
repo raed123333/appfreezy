@@ -210,6 +210,62 @@ const Profile = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    showCustomAlertMessage(
+      "Supprimer le compte", 
+      "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible et toutes vos données seront définitivement perdues.",
+      async () => {
+        try {
+          setIsLoading(true);
+          const userData = user.utilisateur || user.parent || user;
+          const userId = userData.idU || userData.idp || userData.id;
+
+          if (!userId) {
+            throw new Error("User ID not found");
+          }
+
+          const authToken = await getAuthToken();
+          if (!authToken) {
+            throw new Error("Authentication token not found");
+          }
+
+          // Utiliser la route DELETE existante au lieu d'une nouvelle route
+          const response = await fetch(`${API}/utilisateur/${userId}`, {
+            method: "DELETE",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${authToken}`
+            },
+          });
+
+          if (response.ok) {
+            // Supprimer le compte ET se déconnecter immédiatement
+            await logout();
+            showCustomAlertMessage("Succès", "Votre compte a été supprimé avec succès");
+          } else {
+            const errorText = await response.text();
+            let errorMessage = "Échec de la suppression du compte";
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.error || errorData.message || errorMessage;
+            } catch (e) {
+              errorMessage = errorText || errorMessage;
+            }
+            throw new Error(errorMessage);
+          }
+        } catch (error: any) {
+          console.error("Delete account error:", error);
+          showCustomAlertMessage("Erreur", error.message || "Impossible de supprimer le compte");
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      () => {
+        // Cancel action - do nothing
+      }
+    );
+  };
+
   const handleLogout = async () => {
     showCustomAlertMessage(
       "Déconnexion", 
@@ -259,11 +315,12 @@ const Profile = () => {
                 </TouchableOpacity>
               )}
               <TouchableOpacity 
-                style={styles.alertButton}
+                style={[styles.alertButton, alertConfig.title === "Supprimer le compte" && styles.deleteButton]}
                 onPress={alertConfig.onConfirm ? handleCustomAlertConfirm : handleCustomAlertClose}
               >
                 <Text style={styles.alertButtonText}>
-                  {alertConfig.onConfirm ? "Se déconnecter" : "OK"}
+                  {alertConfig.title === "Supprimer le compte" ? "Supprimer" : 
+                   alertConfig.onConfirm ? "Se déconnecter" : "OK"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -391,6 +448,17 @@ const Profile = () => {
               {isLoading ? "Mise à jour..." : "Sauvegarder"}
             </Text>
           </TouchableOpacity>
+
+          {/* Delete Account Button */}
+          <TouchableOpacity 
+            style={[styles.deleteAccountButton, isLoading && styles.disabledButton]} 
+            onPress={handleDeleteAccount}
+            disabled={isLoading}
+          >
+            <Text style={styles.deleteAccountButtonText}>
+              Supprimer mon compte
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -458,11 +526,27 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     width: width * 0.80,
     alignItems: "center",
-    marginBottom: 30,
+    marginBottom: 15,
   },
   secondeButtonText: {
     color: "#FFFFFF",
     fontSize: width * 0.05,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  deleteAccountButton: {
+    backgroundColor: "transparent",
+    padding: 10,
+    borderRadius: 8,
+    width: width * 0.80,
+    alignItems: "center",
+    marginBottom: 30,
+    borderWidth: 2,
+    borderColor: "#FF3B30",
+  },
+  deleteAccountButtonText: {
+    color: "#FF3B30",
+    fontSize: width * 0.045,
     fontWeight: "bold",
     textAlign: "center",
   },
@@ -563,6 +647,10 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
     minWidth: 120,
     flex: 1
+  },
+  deleteButton: {
+    backgroundColor: '#FF3B30',
+    borderColor: '#FF3B30'
   },
   alertButtonSecondary: {
     backgroundColor: 'transparent',

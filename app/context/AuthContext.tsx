@@ -11,6 +11,7 @@ interface User {
   email: string;
   nomEntreprise: string;
   token: string;
+  image?: string; // Added image field
   utilisateur?: any;
 }
 
@@ -54,7 +55,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (userData && authToken) {
         const parsedUserData = JSON.parse(userData);
-        // Ensure the user object has the token
         const userWithToken = {
           ...parsedUserData,
           token: authToken
@@ -68,7 +68,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Helper function to get auth token
   const getAuthToken = async (): Promise<string | null> => {
     try {
       return await SecureStore.getItemAsync('authToken');
@@ -121,7 +120,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(errorData.message || "Registration failed");
       }
 
-      // After successful registration, automatically log the user in
       await login(userData.email, userData.motpasse);
 
     } catch (error) {
@@ -132,7 +130,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const registerGoogle = async (googleData: any) => {
     try {
-      const { email, givenName, familyName } = googleData;
+      const { email, givenName, familyName, photo } = googleData;
+
+      // Convert Google photo to base64 if available
+      let base64Image = null;
+      if (photo) {
+        try {
+          const response = await fetch(photo);
+          const blob = await response.blob();
+          base64Image = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+        } catch (error) {
+          console.log('Error converting Google photo to base64:', error);
+        }
+      }
 
       const userPayload = {
         nom: familyName || "",
@@ -141,6 +155,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         nomEntreprise: "",
         adresse: "",
         telephone: "",
+        image: base64Image // Send Google profile picture as base64
       };
 
       const response = await fetch(`${API}/utilisateur/LoginGoogle`, {
@@ -166,8 +181,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       setUser(userData);
 
-      // Auto navigate to Home after successful Google login
-      router.push("../(freezycorp)/Home");
+      // Check if user has missing profile information
+      if (!userData.nomEntreprise || !userData.adresse) {
+        // Show alert for incomplete profile
+        Alert.alert(
+          "Profil incomplet", 
+          "Merci de mettre à jour votre profil en complétant les informations manquantes (entreprise, adresse, etc.).", 
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Navigate to app after user clicks OK
+                router.push("../(freezycorp)/Home");
+              }
+            }
+          ]
+        );
+      } else {
+        // If profile is complete, navigate directly
+        router.push("../(freezycorp)/Home");
+      }
     } catch (error: any) {
       Alert.alert("Erreur", error.message || "Impossible de créer le compte avec Google");
       throw error;
@@ -179,7 +212,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await SecureStore.deleteItemAsync('userData');
       await SecureStore.deleteItemAsync('authToken');
       setUser(null);
-      // Navigate to auth screen after logout
       router.replace('/');
     } catch (error) {
       console.error('Error during logout:', error);
@@ -277,7 +309,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       verifyResetCode,
       registerGoogle,
       resetPasswordWithCode,
-      getAuthToken // ADDED
+      getAuthToken
     }}>
       {children}
     </AuthContext.Provider>
