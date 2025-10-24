@@ -286,7 +286,7 @@ const OurOffersComponent = () => {
 
       if (initError) {
         console.error("Erreur dans la feuille de paiement:", initError.message);
-        showCustomAlertMessage("Erreur", initError.message);
+        showCustomAlertMessage("Erreur ", "Merci de mettre à jour votre profil en complétant les informations manquantes (entreprise, adresse, etc.)" );
         return;
       }
 

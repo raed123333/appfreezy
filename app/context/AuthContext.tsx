@@ -181,26 +181,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       setUser(userData);
 
-      // Check if user has missing profile information
-      if (!userData.nomEntreprise || !userData.adresse) {
-        // Show alert for incomplete profile
-        Alert.alert(
-          "Profil incomplet", 
-          "Merci de mettre à jour votre profil en complétant les informations manquantes (entreprise, adresse, etc.).", 
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                // Navigate to app after user clicks OK
-                router.push("../(freezycorp)/Home");
-              }
-            }
-          ]
-        );
-      } else {
-        // If profile is complete, navigate directly
-        router.push("../(freezycorp)/Home");
-      }
+      // Navigate to app after successful registration
+      router.push("../(freezycorp)/Home");
+
     } catch (error: any) {
       Alert.alert("Erreur", error.message || "Impossible de créer le compte avec Google");
       throw error;

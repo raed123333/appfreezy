@@ -460,5 +460,9 @@ const styles = {
   },
   alertButtonTextSecondary: {
     color: '#04D9E7'
-  }
+  },
+  alertButtonSecondaryText:{
+    color:'#FFFF'
+
+  },
 };
